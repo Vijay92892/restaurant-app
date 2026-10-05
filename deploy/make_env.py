@@ -78,6 +78,8 @@ REGISTRATION_MODE=closed
 MEDIA_ROOT=/var/lib/restaurant/media
 
 # Password-reset emails. Required: fill these in (any SMTP provider; port 587 with STARTTLS).
+# Gmail: SMTP_HOST=smtp.gmail.com, SMTP_USERNAME and MAIL_FROM = the Gmail address,
+# SMTP_PASSWORD = an app password (Google account > Security > App passwords).
 MAIL_BACKEND=smtp
 MAIL_FROM=no-reply@{domain}
 SMTP_HOST=

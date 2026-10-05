@@ -56,6 +56,11 @@ python3 make_env.py --domain order.yourrestaurant.in --email you@yourrestaurant.
 nano api.env          # fill in SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD (and SMTP_PORT if not 587)
 ```
 
+Without a domain of your own, a dedicated Gmail account is the simplest sender: turn on 2-step
+verification, create an *app password*, and set `SMTP_HOST=smtp.gmail.com`, `SMTP_USERNAME` and
+`MAIL_FROM` to the Gmail address and `SMTP_PASSWORD` to the app password. With your own domain,
+a transactional mail service (with SPF/DKIM set up) looks more professional.
+
 Copy `.env`, `api.env` and `migrate.env` into your password manager now. Losing them later
 means: a new `JWT_SECRET` signs every device out (harmless); a new `PIN_ENC_KEY` makes the stored
 table PIN unreadable until a manager presses *Change PIN now*.
