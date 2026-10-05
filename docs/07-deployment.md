@@ -107,11 +107,12 @@ session cookie's flags. (Pass the whole table link: tokens can start with `-`.)
 
 ```bash
 cd staff_app
-flutter build apk --release --dart-define=API_BASE_URL=https://order.yourrestaurant.in/api/v1
+flutter build apk --release --dart-define=API_BASE_URL=https://order.yourrestaurant.in
 # build/app/outputs/flutter-apk/app-release.apk → copy to each device and install
 ```
 
-Release builds refuse plain `http://` API addresses. Device setup (screen lock, sound, Wi-Fi) is
+`API_BASE_URL` is the site's address only — the app adds `/api/v1` itself. Release builds
+refuse plain `http://` API addresses. Device setup (screen lock, sound, Wi-Fi) is
 in [docs/08 §2](08-pilot-playbook.md).
 
 **Backups and monitoring** (do not skip):

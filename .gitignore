@@ -37,3 +37,6 @@ customer-web/playwright-report/
 Thumbs.db
 .idea/
 .vscode/
+
+# Local test QR cards (temporary tunnel address)
+demo-qr-cards.html

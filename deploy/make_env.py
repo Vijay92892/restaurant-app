@@ -66,7 +66,7 @@ RATE_LIMIT_BACKEND=redis
 EVENT_BUS_BACKEND=redis
 REDIS_URL=redis://:{redis}@redis:6379/0
 
-# One origin for the ordering page, the API and the staff app (API_BASE_URL=https://{domain}/api/v1).
+# One origin for the ordering page, the API and the staff app (API_BASE_URL=https://{domain}).
 PUBLIC_ORDER_BASE_URL=https://{domain}
 PUBLIC_WEB_ORIGINS=https://{domain}
 PASSWORD_RESET_URL=https://{domain}/reset-password
