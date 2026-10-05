@@ -40,3 +40,5 @@ Thumbs.db
 
 # Local test QR cards (temporary tunnel address)
 demo-qr-cards.html
+# App builds handed out for testing
+*.apk
