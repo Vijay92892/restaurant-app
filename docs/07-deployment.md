@@ -220,6 +220,9 @@ Found and fixed during the rehearsal: QR tokens that start with `-` were read as
 the checker (it now takes the whole link); a confirmation message was queued behind an earlier
 one; the load-test report recorded the Redis password (now redacted); the dev/test PostgreSQL
 build has no time-zone database, so the restaurant's local day is computed in Python.
+Found in the first real-phone test: the QR codes on the printed card sheet were cropped (a
+fixed-size image squeezed into a smaller box), so phones could not read them. They now scale;
+all six cards of the test restaurant were decoded from a browser screenshot by a QR reader.
 
 **Not verified on this machine:** building the Docker images and running `docker compose`
 (Docker is not installed here). The first `docker compose up --build` on the server is that

@@ -43,9 +43,14 @@ def qr_url(settings: Settings, token: str) -> str:
     return f"{settings.public_order_base_url}/t/{token}"
 
 
-def render_qr_svg(url: str) -> bytes:
+def render_qr_svg(url: str, *, scalable: bool = False) -> bytes:
+    """The QR code as SVG. `scalable` drops the fixed width/height in favour of a viewBox, so a
+    page can size it freely (at a fixed size, a smaller box crops the code instead of shrinking
+    it, and a cropped code cannot be scanned)."""
     buffer = io.BytesIO()
-    segno.make_qr(url, error="m").save(buffer, kind="svg", scale=10, border=4, xmldecl=False)
+    segno.make_qr(url, error="m").save(
+        buffer, kind="svg", scale=10, border=4, xmldecl=False, omitsize=scalable
+    )
     return buffer.getvalue()
 
 

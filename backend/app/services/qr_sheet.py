@@ -40,7 +40,7 @@ body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, san
 def _card(restaurant: Restaurant, view: TableView, settings: Settings, hint: str) -> str:
     assert view.qr_token is not None
     url = table_service.qr_url(settings, view.qr_token)
-    svg = table_service.render_qr_svg(url).decode("utf-8")
+    svg = table_service.render_qr_svg(url, scalable=True).decode("utf-8")
     return (
         '<section class="card">'
         f'<div class="restaurant">{html.escape(restaurant.name)}</div>'

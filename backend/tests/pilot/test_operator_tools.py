@@ -198,6 +198,11 @@ async def test_qr_cards_hold_each_live_tables_link_and_escape_names(
     assert "<script>" not in page
     assert "Dhaba &lt;script&gt;" in page
     assert page.count('class="card"') == 1
+    # The card shrinks the code: it must scale (viewBox), not keep a fixed size and get cropped
+    # (that left only one corner square visible and unscannable).
+    svg = page[page.index("<svg") : page.index(">", page.index("<svg")) + 1]
+    assert "viewBox=" in svg
+    assert "width=" not in svg and "height=" not in svg
 
 
 async def test_pilot_report_counts_orders_timings_pins_and_problems(
