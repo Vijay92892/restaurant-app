@@ -1,0 +1,8 @@
+# Text files are stored with LF line endings (the server is Linux); Windows checkouts may use CRLF.
+* text=auto
+
+# Shell scripts run inside Linux containers and on the server: always LF line endings.
+*.sh text eol=lf
+deploy/Caddyfile text eol=lf
+deploy/*.Dockerfile text eol=lf
+backend/Dockerfile text eol=lf

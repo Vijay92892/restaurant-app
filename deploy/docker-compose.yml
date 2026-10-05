@@ -1,0 +1,130 @@
+# One small server running everything (the pilot). Step by step: docs/07-deployment.md.
+#
+#   python3 make_env.py --domain order.example.in --email you@example.in   # once: secrets
+#   (fill in SMTP_* in api.env)
+#   docker compose up -d --build
+#
+# Secrets are split so each container gets only what it needs:
+#   .env         compose variables: domain, database and Redis passwords (db, redis, web)
+#   api.env      the API's settings (runtime database role: no BYPASSRLS, owns nothing)
+#   migrate.env  the schema owner's database URL (migrations only, never the running API)
+name: restaurant
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?run make_env.py first}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?run make_env.py first}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?run make_env.py first}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # First start only (empty volume): the two roles and the database (bootstrap_db.sql).
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+      - ../backend/scripts/bootstrap_db.sql:/bootstrap/bootstrap_db.sql:ro
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d restaurant"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [internal]
+    logging: *logging
+
+  redis:
+    # Rate-limit counters and live-update fan-out between API workers. Never the source of
+    # truth: nothing is persisted, and a restart only makes staff devices reload.
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - volatile-ttl
+      - --requirepass
+      - ${REDIS_PASSWORD:?run make_env.py first}
+    networks: [internal]
+    logging: *logging
+
+  migrate:
+    # Brings the schema up to date, then exits. Runs before every API start.
+    build: ../backend
+    image: restaurant-api
+    env_file: [api.env, migrate.env]
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    networks: [internal]
+    logging: *logging
+
+  api:
+    image: restaurant-api
+    restart: unless-stopped
+    env_file: [api.env]
+    volumes:
+      - media:/var/lib/restaurant/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 20s
+    networks: [internal]
+    logging: *logging
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      ORDER_DOMAIN: ${ORDER_DOMAIN:?run make_env.py first}
+      ACME_EMAIL: ${ACME_EMAIL:?run make_env.py first}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data # TLS certificates and keys: keep this volume
+      - caddy_config:/config
+    depends_on: [api]
+    networks: [internal]
+    logging: *logging
+
+networks:
+  internal:
+    # A fixed range, so the API can trust exactly this network's proxy (TRUSTED_PROXIES).
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  pgdata:
+  media:
+  caddy_data:
+  caddy_config:

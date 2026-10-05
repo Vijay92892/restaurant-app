@@ -1,0 +1,55 @@
+# The whole product on ONE HTTPS origin (the customer's session cookie is first-party):
+#   /api/*, /media/*, /healthz  -> the API (REST and the staff WebSocket)
+#   everything else             -> the customer ordering page (static files; /t/<token> and
+#                                  /reset-password fall back to index.html)
+# Caddy obtains and renews the TLS certificate for ORDER_DOMAIN automatically.
+# See docs/07-deployment.md. Environment: ORDER_DOMAIN, ACME_EMAIL (+ test-only overrides below).
+{
+	email {$ACME_EMAIL}
+	# Overridable for a local rehearsal on unprivileged ports; production uses 80/443.
+	http_port {$HTTP_PORT:80}
+	https_port {$HTTPS_PORT:443}
+	servers {
+		timeouts {
+			read_header 10s
+			idle 2m
+		}
+	}
+}
+
+{$ORDER_DOMAIN} {
+	encode zstd gzip
+	header -Server
+	# Menu photo uploads are up to 5 MB; the API enforces the exact limits.
+	request_body {
+		max_size 6MB
+	}
+
+	@api path /api/* /media/* /healthz
+	handle @api {
+		# Caddy sets X-Forwarded-For to the real client address and drops whatever the client
+		# sent (clients are not trusted proxies); the API trusts only this hop (TRUSTED_PROXIES).
+		reverse_proxy {$API_UPSTREAM:api:8000}
+	}
+
+	handle {
+		root * {$CUSTOMER_ROOT:/srv/customer}
+		# The API sets its own headers; these protect the customer page (docs/06 §7). The page's
+		# own Content-Security-Policy is in index.html; framing can only be forbidden here.
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "no-referrer"
+			X-Frame-Options "DENY"
+			Content-Security-Policy "frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+			Cross-Origin-Opener-Policy "same-origin"
+		}
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		@page not path /assets/*
+		header @page Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

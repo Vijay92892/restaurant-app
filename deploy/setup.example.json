@@ -1,0 +1,68 @@
+{
+  "tables": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "Family 1", "Family 2"],
+  "staff": [
+    { "username": "manager", "name": "Kiran (manager)", "role": "admin" },
+    { "username": "ravi", "name": "Ravi", "role": "waiter" },
+    { "username": "sunil", "name": "Sunil", "role": "waiter" },
+    { "username": "kitchen", "name": "Kitchen tablet", "role": "kitchen" }
+  ],
+  "option_groups": [
+    { "name": "Spice level", "min": 1, "max": 1, "options": ["Mild", "Medium", "Hot"] },
+    {
+      "name": "Add-ons",
+      "min": 0,
+      "max": 3,
+      "options": [
+        { "name": "Extra cheese", "price": 40 },
+        { "name": "Extra butter", "price": 20 },
+        "Onion salad"
+      ]
+    },
+    { "name": "Size", "min": 1, "max": 1, "options": ["Regular", { "name": "Large", "price": 40 }] }
+  ],
+  "menu": [
+    {
+      "category": "Starters",
+      "dishes": [
+        {
+          "name": "Paneer Tikka",
+          "type": "veg",
+          "price": 249,
+          "description": "Char-grilled cottage cheese, mint chutney",
+          "options": ["Spice level", "Add-ons"]
+        },
+        { "name": "Chicken 65", "type": "non_veg", "price": 279, "options": ["Spice level"] },
+        { "name": "Veg Spring Roll", "type": "veg", "price": 179 }
+      ]
+    },
+    {
+      "category": "Main course",
+      "dishes": [
+        {
+          "name": "Dal Makhani",
+          "type": "veg",
+          "price": 229,
+          "description": "Black lentils slow-cooked with butter",
+          "options": ["Spice level", "Add-ons"]
+        },
+        { "name": "Butter Chicken", "type": "non_veg", "price": 329, "options": ["Spice level"] },
+        { "name": "Egg Curry", "type": "egg", "price": 199, "options": ["Spice level"] }
+      ]
+    },
+    {
+      "category": "Breads",
+      "dishes": [
+        { "name": "Butter Naan", "type": "veg", "price": 60 },
+        { "name": "Garlic Naan", "type": "veg", "price": 70 },
+        { "name": "Tandoori Roti", "type": "veg", "price": 30 }
+      ]
+    },
+    {
+      "category": "Drinks",
+      "dishes": [
+        { "name": "Masala Chai", "type": "veg", "price": 40 },
+        { "name": "Sweet Lassi", "type": "veg", "price": 90, "options": ["Size"] }
+      ]
+    }
+  ]
+}

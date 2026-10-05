@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets & local state
+.env
+.env.*
+!.env.example
+backend/.devdb/
+backend/.devdb.log
+backend/.media/
+backend/.media-e2e/
+# Production configuration and backups made on the server (deploy/make_env.py, backup.sh)
+deploy/api.env
+deploy/migrate.env
+deploy/backups/
+
+# Flutter / Dart
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Node
+node_modules/
+dist/
+customer-web/test-results/
+customer-web/e2e/.cert/
+customer-web/playwright-report/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

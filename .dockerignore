@@ -1,0 +1,9 @@
+# Build context of deploy/web.Dockerfile (the repository root): it only needs customer-web/
+# and deploy/Caddyfile. Keep everything else, and every secret, out of the context.
+*
+!customer-web/
+!deploy/Caddyfile
+customer-web/node_modules
+customer-web/dist
+customer-web/test-results
+customer-web/e2e/.cert
