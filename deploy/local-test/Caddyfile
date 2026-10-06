@@ -1,0 +1,38 @@
+# Front door for a TEMPORARY public test from a development PC (deploy/local-test/start.ps1).
+# Cloudflare's quick tunnel ends HTTPS and forwards to this port; production uses deploy/Caddyfile.
+{
+	admin off
+	auto_https off
+	servers {
+		# cloudflared connects from this machine: trust its X-Forwarded-For (the phone's address).
+		trusted_proxies static 127.0.0.1/32 ::1/128
+	}
+}
+
+http://:8081 {
+	bind 127.0.0.1
+	encode zstd gzip
+	header -Server
+	request_body {
+		max_size 6MB
+	}
+
+	@api path /api/* /media/* /healthz
+	handle @api {
+		reverse_proxy 127.0.0.1:8040
+	}
+
+	handle {
+		root * {$CUSTOMER_ROOT}
+		header {
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "no-referrer"
+			X-Frame-Options "DENY"
+			Content-Security-Policy "frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+		}
+		@page not path /assets/*
+		header @page Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

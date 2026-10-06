@@ -126,6 +126,22 @@ flutter build apk --dart-define=API_BASE_URL=https://api.example.com   # release
 * **Screenshots** of every screen: `SCREENSHOTS=1 flutter test test/screenshots_test.dart --update-goldens`
   (images in `test/screens/`).
 
+## Public test from your own PC (no server)
+
+To try the system on real phones before renting a server, this starts the database, the API,
+the ordering page and a free Cloudflare quick tunnel, then prints a public `https://…` address,
+the table PIN and the table links, and writes printable QR cards (`demo-qr-cards.html`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\local-test\start.ps1 [-Code dhaba-test] [-Apk]
+powershell -ExecutionPolicy Bypass -File deploy\local-test\stop.ps1
+```
+
+`-Apk` also builds the staff app for phones, set to that address. The address changes on every
+start, and Cloudflare deletes it when the PC sleeps or goes offline — run the script again. For
+testing only: real customers need a server (below). `python -m app.cli show-pin --code <code>`
+prints the current PIN and table links at any time.
+
 ## Deploying (Phase 11)
 
 `deploy/` runs everything on one server with Docker Compose: Caddy (HTTPS, security headers, the

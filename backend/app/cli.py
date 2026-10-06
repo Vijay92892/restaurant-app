@@ -5,6 +5,7 @@
     python -m app.cli apply-setup --code spice-garden --file setup.json [--dry-run]
     python -m app.cli qr-sheet --code spice-garden [--table T4] [--out qr-cards.html]
     python -m app.cli regenerate-qr --code spice-garden --table T4
+    python -m app.cli show-pin --code spice-garden
     python -m app.cli pilot-report --code spice-garden [--days 7] [--out report.md]
     python -m app.cli purge
 
@@ -12,7 +13,8 @@ The owner password is read interactively (never from argv, which leaks into shel
 process listings). `apply-setup` creates tables, staff, option groups and the menu from one file
 (re-runnable; the format is in docs/08-pilot-playbook.md). `qr-sheet` writes printable table
 cards (to stdout without --out); `regenerate-qr` replaces a lost or copied table card's code
-(the old card stops working). `pilot-report` summarises the pilot (orders, timings, PIN use,
+(the old card stops working). `show-pin` prints the current table PIN and each table's link
+(what a manager sees in the app). `pilot-report` summarises the pilot (orders, timings, PIN use,
 problem reports). `purge` runs the data-retention job once (the API also runs it hourly).
 """
 
@@ -42,7 +44,14 @@ from app.db.session import Database, bind_tenant
 from app.models import Restaurant, User
 from app.models.enums import Role
 from app.repositories import resolvers
-from app.services import pilot_report, qr_sheet, retention_service, setup_service, table_service
+from app.services import (
+    pilot_report,
+    pin_service,
+    qr_sheet,
+    retention_service,
+    setup_service,
+    table_service,
+)
 from app.services.auth_service import StaffContext
 from app.services.restaurant_service import create_restaurant_with_owner
 
@@ -226,6 +235,28 @@ async def _regenerate_qr(args: argparse.Namespace) -> int:
     return await _with_restaurant(args.code, work)
 
 
+async def _show_pin(args: argparse.Namespace) -> int:
+    async def work(session: AsyncSession, ctx: StaffContext, settings: Settings) -> int:
+        crypto = PinCrypto(settings)
+        current = await pin_service.ensure_current_pin(session, crypto, ctx.restaurant_id)
+        await session.refresh(ctx.restaurant)
+        info = pin_service.describe(crypto, ctx.restaurant, current)
+        await session.commit()  # keeps a self-healed initial PIN, as the API does
+        when = (
+            info.next_rotation_at.astimezone().strftime("%d %b %H:%M")
+            if info.next_rotation_at
+            else "only when changed by hand"
+        )
+        print(f"Table PIN: {info.pin}   (next change: {when})")
+        for view in await table_service.list_tables(session, ctx.restaurant_id):
+            if view.table.is_active and view.qr_token is not None:
+                link = table_service.qr_url(settings, view.qr_token)
+                print(f"  {view.table.label:<10} {link}")
+        return 0
+
+    return await _with_restaurant(args.code, work)
+
+
 async def _pilot_report(args: argparse.Namespace) -> int:
     async def work(session: AsyncSession, ctx: StaffContext, settings: Settings) -> int:
         report = await pilot_report.build(session, ctx.restaurant, days=args.days)
@@ -285,6 +316,8 @@ def main(argv: list[str] | None = None) -> int:
     regen = sub.add_parser("regenerate-qr", help="replace a table's QR code (lost/copied card)")
     regen.add_argument("--code", required=True)
     regen.add_argument("--table", required=True, help="the table's label, e.g. T4")
+    show = sub.add_parser("show-pin", help="print the current table PIN and table links")
+    show.add_argument("--code", required=True)
     report = sub.add_parser("pilot-report", help="summarise the pilot for one restaurant")
     report.add_argument("--code", required=True)
     report.add_argument("--days", type=int, default=7, choices=range(1, 91), metavar="1-90")
@@ -299,6 +332,8 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(_qr_sheet(args))
     if args.command == "regenerate-qr":
         return asyncio.run(_regenerate_qr(args))
+    if args.command == "show-pin":
+        return asyncio.run(_show_pin(args))
     if args.command == "pilot-report":
         return asyncio.run(_pilot_report(args))
     if args.command == "purge":

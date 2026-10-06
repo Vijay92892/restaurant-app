@@ -42,3 +42,5 @@ Thumbs.db
 demo-qr-cards.html
 # App builds handed out for testing
 *.apk
+# Downloaded helper programs and logs of the local public test (deploy/local-test)
+.tools/
