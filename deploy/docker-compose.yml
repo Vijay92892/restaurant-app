@@ -67,7 +67,11 @@ services:
 
   migrate:
     # Brings the schema up to date, then exits. Runs before every API start.
-    build: ../backend
+    build:
+      context: ../backend
+      # Builds download packages over the server's own network: on some cloud servers, downloads
+      # through Docker's build network stall (PyPI/npm read timeouts).
+      network: host
     image: restaurant-api
     env_file: [api.env, migrate.env]
     command: ["alembic", "upgrade", "head"]
@@ -80,6 +84,7 @@ services:
 
   api:
     image: restaurant-api
+    pull_policy: never # built locally by the migrate service above, never downloaded
     restart: unless-stopped
     env_file: [api.env]
     volumes:
@@ -108,6 +113,7 @@ services:
     build:
       context: ..
       dockerfile: deploy/web.Dockerfile
+      network: host
     restart: unless-stopped
     environment:
       ORDER_DOMAIN: ${ORDER_DOMAIN:?run make_env.py first}

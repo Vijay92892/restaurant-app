@@ -14,7 +14,7 @@ RUN groupadd --system app && useradd --system --gid app --home-dir /app --no-cre
 # Dependencies and the application package (no tests, scripts or local state: .dockerignore).
 COPY pyproject.toml ./
 COPY app ./app
-RUN pip install .
+RUN pip install --default-timeout=120 --retries 10 .
 COPY alembic ./alembic
 COPY alembic.ini ./
 
