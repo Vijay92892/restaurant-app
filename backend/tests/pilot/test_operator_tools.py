@@ -13,10 +13,18 @@ import asyncpg
 import httpx
 import pytest
 
-from app.cli import OperatorError, _operator, _pick_table, load_setup
+from app.cli import OperatorError, _operator, _pick_table, forget_failed_logins, load_setup
 from app.core.config import Settings
-from app.core.errors import InvalidInput
-from app.services import pilot_report, qr_sheet, setup_service, table_service, usage_service
+from app.core.errors import InvalidInput, NotFound
+from app.core.net import RequestMeta
+from app.services import (
+    pilot_report,
+    qr_sheet,
+    setup_service,
+    staff_service,
+    table_service,
+    usage_service,
+)
 from app.services.setup_service import SetupFile
 from tests.conftest import Seeder, login, login_ok, staff_headers
 from tests.test_realtime import ORDERS, place
@@ -283,3 +291,38 @@ async def test_operator_commands_find_tables_by_label(
     assert _pick_table(tables, " family 1 ").table.label == "Family 1"
     with pytest.raises(OperatorError, match="Tables: T1, Family 1"):
         _pick_table(tables, "T9")
+
+
+async def test_operator_reset_lets_a_locked_out_owner_back_in(
+    app: object, client: httpx.AsyncClient, seed: Seeder, owner_conn: asyncpg.Connection
+) -> None:
+    await seed.restaurant("alpha")
+    await seed.restaurant("beta")
+    before = await login_ok(client, "alpha", "owner")
+    for _ in range(5):  # forgot the password and kept guessing
+        assert (await login(client, "alpha", "owner", "Wrong-Guess-123")).status_code == 401
+    assert (await login(client, "alpha", "owner")).status_code == 429  # locked for 15 minutes
+
+    password = setup_service.temporary_password("owner")
+    meta = RequestMeta(ip="127.0.0.1", user_agent="test", request_id="cli-reset-password")
+    async with app.state.db.sessionmaker() as session:  # type: ignore[attr-defined]
+        ctx = await _operator(session, "alpha")
+        with pytest.raises(NotFound):
+            await staff_service.operator_reset_password(session, ctx, meta, "nobody", password)
+        user = await staff_service.operator_reset_password(session, ctx, meta, "owner", password)
+    assert user.must_change_password
+    limiter = app.state.rate_limiter  # type: ignore[attr-defined]
+    assert await forget_failed_logins(limiter, "alpha", "owner")
+
+    assert (await login(client, "alpha", "owner")).status_code == 401  # the old password is gone
+    after = await login_ok(client, "alpha", "owner", password)
+    assert after["user"]["must_change_password"]  # the app asks for a new one first
+    old_device = await client.post(
+        "/api/v1/auth/refresh", json={"refresh_token": before["refresh_token"]}
+    )
+    assert old_device.status_code == 401  # devices signed in before are signed out
+    await login_ok(client, "beta", "owner")  # another restaurant's owner is untouched
+    audit = await owner_conn.fetchrow(
+        "SELECT actor_type, actor_user_id FROM audit_logs WHERE action = 'staff.password_reset'"
+    )
+    assert audit["actor_type"] == "system" and audit["actor_user_id"] is None

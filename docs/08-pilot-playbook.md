@@ -144,7 +144,7 @@ nothing about individual guests. The rest comes from staff reports and from watc
 | Wrong order sent | Cancel it with *Entered by mistake* (or ask a manager if cooking started) and send the right one. |
 | Guest can't get past the PIN | Read the PIN out again / show it full screen; if it was just changed, the guest needs the new one. Report it (*Customer needed help*). |
 | PIN got out, unknown orders appear | Manager: *Change PIN now* + *sign out phones*. Cancel the unknown orders. |
-| Someone can't sign in | Manager resets their password in the app; the owner uses *Forgot password?*. |
+| Someone can't sign in | Manager resets their password in the app; the owner uses *Forgot password?*, or you run `reset-password` on the server (docs/07 §6). |
 
 ## 7. Success criteria (agree the numbers with the owner before the pilot)
 

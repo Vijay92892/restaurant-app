@@ -181,6 +181,43 @@ async def reset_password(
 ) -> None:
     target = await _get_target(db, ctx, user_id)
     _guard(ctx, target, None)
+    await _set_temporary_password(db, ctx, meta, target, temporary_password, by_operator=False)
+
+
+async def operator_reset_password(
+    db: AsyncSession,
+    ctx: StaffContext,
+    meta: RequestMeta,
+    username: str,
+    temporary_password: str,
+) -> User:
+    """The operator's reset (`python -m app.cli reset-password`): any account of the restaurant,
+    the owner's included, for when nobody who could reset it in the app can sign in and the
+    reset email cannot help. Same effect as a manager's reset."""
+    result = await db.execute(
+        select(User).where(
+            User.restaurant_id == ctx.restaurant_id,
+            User.username == username,
+            User.deleted_at.is_(None),
+        )
+    )
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise NotFound(f"No account {username!r} in this restaurant.")
+    await _set_temporary_password(db, ctx, meta, target, temporary_password, by_operator=True)
+    return target
+
+
+async def _set_temporary_password(
+    db: AsyncSession,
+    ctx: StaffContext,
+    meta: RequestMeta,
+    target: User,
+    temporary_password: str,
+    *,
+    by_operator: bool,
+) -> None:
+    """A temporary password, changed at the next sign-in; every session of the account ends."""
     validate_new_password(temporary_password, username=target.username)
     now = utcnow()
     target.password_hash = await passwords.hash(temporary_password)
@@ -193,10 +230,11 @@ async def reset_password(
         db,
         restaurant_id=ctx.restaurant_id,
         action="staff.password_reset",
-        actor_type=ActorType.STAFF,
-        actor_user_id=ctx.user_id,
+        actor_type=ActorType.SYSTEM if by_operator else ActorType.STAFF,
+        actor_user_id=None if by_operator else ctx.user_id,
         entity_type="user",
         entity_id=target.id,
+        details={"by": "operator"} if by_operator else None,
         meta=meta,
     )
     await db.commit()

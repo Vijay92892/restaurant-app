@@ -6,6 +6,7 @@
     python -m app.cli qr-sheet --code spice-garden [--table T4] [--out qr-cards.html]
     python -m app.cli regenerate-qr --code spice-garden --table T4
     python -m app.cli show-pin --code spice-garden
+    python -m app.cli reset-password --code spice-garden --username owner
     python -m app.cli pilot-report --code spice-garden [--days 7] [--out report.md]
     python -m app.cli purge
 
@@ -14,7 +15,9 @@ process listings). `apply-setup` creates tables, staff, option groups and the me
 (re-runnable; the format is in docs/08-pilot-playbook.md). `qr-sheet` writes printable table
 cards (to stdout without --out); `regenerate-qr` replaces a lost or copied table card's code
 (the old card stops working). `show-pin` prints the current table PIN and each table's link
-(what a manager sees in the app). `pilot-report` summarises the pilot (orders, timings, PIN use,
+(what a manager sees in the app). `reset-password` gives any account, the owner's included, a
+temporary password (shown once, changed at the next sign-in): for a locked-out owner when the
+reset email cannot help. `pilot-report` summarises the pilot (orders, timings, PIN use,
 problem reports). `purge` runs the data-retention job once (the API also runs it hourly).
 """
 
@@ -31,6 +34,7 @@ from pathlib import Path
 from typing import TextIO
 
 from pydantic import ValidationError
+from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,6 +43,7 @@ from app.core.errors import AppError
 from app.core.net import RequestMeta
 from app.core.permissions import permissions_for
 from app.core.pin import PinCrypto
+from app.core.rate_limit import Limits, RateLimiter, build_rate_limiter
 from app.core.security import passwords
 from app.db.session import Database, bind_tenant
 from app.models import Restaurant, User
@@ -50,9 +55,10 @@ from app.services import (
     qr_sheet,
     retention_service,
     setup_service,
+    staff_service,
     table_service,
 )
-from app.services.auth_service import StaffContext
+from app.services.auth_service import StaffContext, login_account_key
 from app.services.restaurant_service import create_restaurant_with_owner
 
 
@@ -257,6 +263,42 @@ async def _show_pin(args: argparse.Namespace) -> int:
     return await _with_restaurant(args.code, work)
 
 
+async def forget_failed_logins(limiter: RateLimiter, code: str, username: str) -> bool:
+    """Lift the 15-minute lock after wrong passwords (someone who forgot theirs has usually been
+    guessing). False if the limiter is unreachable."""
+    try:
+        await limiter.reset(Limits.LOGIN_FAILURES_PER_ACCOUNT, login_account_key(code, username))
+    except (RedisError, OSError):
+        return False
+    return True
+
+
+async def _reset_password(args: argparse.Namespace) -> int:
+    username = args.username.strip().lower()
+
+    async def work(session: AsyncSession, ctx: StaffContext, settings: Settings) -> int:
+        meta = RequestMeta(
+            ip="127.0.0.1", user_agent="app.cli reset-password", request_id="cli-reset-password"
+        )
+        password = setup_service.temporary_password(username)
+        user = await staff_service.operator_reset_password(session, ctx, meta, username, password)
+        limiter = build_rate_limiter(settings)
+        try:
+            unlocked = await forget_failed_logins(limiter, ctx.restaurant.code, user.username)
+        finally:
+            await limiter.close()
+        print(f"Temporary password for {user.username} ({user.display_name}): {password}")
+        print("Shown once: sign in with it, and the app asks for a new password.")
+        print("Every device signed in to this account has been signed out.")
+        if not unlocked:
+            print("If sign-in says there were too many attempts, wait 15 minutes.")
+        if not user.is_active:
+            print("This account is switched off: switch it back on in the app (Manage > Staff).")
+        return 0
+
+    return await _with_restaurant(args.code, work)
+
+
 async def _pilot_report(args: argparse.Namespace) -> int:
     async def work(session: AsyncSession, ctx: StaffContext, settings: Settings) -> int:
         report = await pilot_report.build(session, ctx.restaurant, days=args.days)
@@ -318,6 +360,11 @@ def main(argv: list[str] | None = None) -> int:
     regen.add_argument("--table", required=True, help="the table's label, e.g. T4")
     show = sub.add_parser("show-pin", help="print the current table PIN and table links")
     show.add_argument("--code", required=True)
+    reset = sub.add_parser(
+        "reset-password", help="give an account (even the owner) a temporary password"
+    )
+    reset.add_argument("--code", required=True)
+    reset.add_argument("--username", required=True, help="e.g. owner")
     report = sub.add_parser("pilot-report", help="summarise the pilot for one restaurant")
     report.add_argument("--code", required=True)
     report.add_argument("--days", type=int, default=7, choices=range(1, 91), metavar="1-90")
@@ -334,6 +381,8 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(_regenerate_qr(args))
     if args.command == "show-pin":
         return asyncio.run(_show_pin(args))
+    if args.command == "reset-password":
+        return asyncio.run(_reset_password(args))
     if args.command == "pilot-report":
         return asyncio.run(_pilot_report(args))
     if args.command == "purge":

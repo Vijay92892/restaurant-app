@@ -589,6 +589,19 @@ and without the developer at every step, and it needs to be measured. New since 
   never deleting, refusal before change, file validation (incl. BOM), QR cards (live tables only,
   escaping), pilot report figures and one-line staff text, unknown restaurant, table lookup.
 
+### Operator password reset — `reset-password` (added after go-live)
+- **Why:** an owner who forgot the password and has no working reset email had no way back in
+  (the app's resets never touch the owner account).
+- **Authentication:** as the other operator tools (shell access on the server). Bound to one
+  restaurant by code: accounts of other restaurants are not found (row-level security).
+- **Effect:** same as a manager's reset: a random temporary password (about 59 bits) printed
+  once and never stored in clear, `must_change_password` set, every session of the account
+  revoked. It also lifts that account's 15-minute wrong-password lock. Audit log
+  `staff.password_reset` with actor `system` and `{"by": "operator"}`.
+- **Tests:** `test_operator_reset_lets_a_locked_out_owner_back_in` (lock lifted, old password
+  refused, temporary password must be changed, old sessions refused, other restaurant
+  untouched, unknown username, audit row).
+
 ### Staff password-reset page — `customer-web/src/reset.ts`
 - Token read from the URL fragment, validated, removed from the address bar immediately, sent
   only to `POST /auth/password-reset/confirm` (single use, 1 h, hashed at rest — Phase 3).

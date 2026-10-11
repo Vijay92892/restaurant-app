@@ -172,8 +172,8 @@ runtime role still owns nothing, and with no restaurant bound it still sees zero
 | Weekly pilot report | `docker compose exec -T api python -m app.cli pilot-report --code <code> --days 7 > report.md` |
 | A QR card was lost or copied | `docker compose exec api python -m app.cli regenerate-qr --code <code> --table T4`, then `qr-sheet --table T4 > card.html` and print. The old card stops working. |
 | Menu changes | Edit `setup.json`, run `apply-setup --dry-run`, then without. It only adds and updates, never deletes; switching a dish off is `"active": false`. Sold-out switches belong to the kitchen (app). |
-| Owner forgot the password | *Forgot password?* on the app's sign-in screen (email link → `https://<domain>/reset-password`). Works only if the account has an email address: give `--owner-email` when creating the restaurant. |
-| Staff forgot the password | A manager resets it in the app (*Manage → Staff*). |
+| Owner forgot the password | *Forgot password?* on the app's sign-in screen (email link → `https://<domain>/reset-password`). Works only if the account has an email address: give `--owner-email` when creating the restaurant. Without email: `docker compose exec api python -m app.cli reset-password --code <code> --username <owner>` prints a temporary password once (the app asks for a new one at sign-in; the account's devices are signed out; the 15-minute wrong-password lock is lifted). |
+| Staff forgot the password | A manager resets it in the app (*Manage → Staff*); if no manager can sign in, the operator's `reset-password` (above) works for any account. |
 | Data retention | Runs hourly by itself; `docker compose exec api python -m app.cli purge` runs it now. |
 
 **Incidents**

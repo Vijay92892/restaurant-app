@@ -108,6 +108,11 @@ async def load_staff_context(
     )
 
 
+def login_account_key(restaurant_code: str, username: str) -> str:
+    """Identifies an account in the wrong-password budget (LOGIN_FAILURES_PER_ACCOUNT)."""
+    return f"{restaurant_code}\x00{username}"
+
+
 class AuthService:
     def __init__(
         self, db: AsyncSession, settings: Settings, limiter: RateLimiter, meta: RequestMeta
@@ -121,7 +126,7 @@ class AuthService:
 
     async def login(self, restaurant_code: str, username: str, password: str) -> IssuedTokens:
         ip = self.meta.ip
-        account = f"{restaurant_code}\x00{username}"
+        account = login_account_key(restaurant_code, username)
         await self.limiter.enforce(Limits.LOGIN_PER_IP, ip)
         # Counted as a failure until the password checks out (see Budget), so simultaneous
         # guesses cannot exceed the per-account budget.
