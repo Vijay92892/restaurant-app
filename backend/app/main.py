@@ -192,11 +192,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         async def root() -> RedirectResponse:
             return RedirectResponse("/docs")
 
-    @app.get("/healthz", include_in_schema=False)
+    # HEAD too: uptime monitors (UptimeRobot and others) check with HEAD and count 405 as down.
+    @app.api_route("/healthz", methods=["GET", "HEAD"], include_in_schema=False)
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/readyz", include_in_schema=False)
+    @app.api_route("/readyz", methods=["GET", "HEAD"], include_in_schema=False)
     async def readyz() -> dict[str, str]:
         async with app.state.db.engine.connect() as conn:
             await conn.execute(text("SELECT 1"))

@@ -129,7 +129,8 @@ crontab -e                                    # then add:
 
 Copy `deploy/backups/` off the server regularly (another machine, or cloud storage with
 `rclone`) — a backup on the same disk does not survive losing the server. Add an external uptime
-monitor (any free service) on `https://<domain>/healthz`, alerting your phone.
+monitor (any free service, e.g. UptimeRobot) on `https://<domain>/healthz`, alerting your phone.
+Monitors often check with `HEAD` requests; `/healthz` and `/readyz` answer those too.
 
 ## 4. Updating
 

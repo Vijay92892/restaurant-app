@@ -35,6 +35,13 @@ async def test_unknown_route_and_wrong_method_use_the_error_envelope(
     assert wrong_method.json()["error"]["code"] == "method_not_allowed"
 
 
+async def test_health_checks_answer_head_for_uptime_monitors(client: httpx.AsyncClient) -> None:
+    for path in ("/healthz", "/readyz"):
+        response = await client.head(path)
+        assert response.status_code == 200, path
+        assert response.content == b""
+
+
 async def test_security_headers_are_set(client: httpx.AsyncClient) -> None:
     response = await client.get("/healthz")
     assert response.headers["x-content-type-options"] == "nosniff"

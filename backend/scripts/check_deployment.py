@@ -107,6 +107,12 @@ def check_api(r: Report, client: httpx.Client, base: str) -> None:
     print("API")
     health = client.get("/healthz")
     r.check(health.status_code == 200 and health.json() == {"status": "ok"}, "/healthz answers")
+    head = client.head("/healthz")
+    r.check(
+        head.status_code == 200,
+        "/healthz answers HEAD (uptime monitors)",
+        f"{head.status_code}",
+    )
     missing = client.get(f"/api/v1/public/tables/{MISSING_QR}")
     body = missing.json() if "json" in missing.headers.get("content-type", "") else {}
     r.check(
