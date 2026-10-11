@@ -150,14 +150,18 @@ def check_api(r: Report, client: httpx.Client, base: str) -> None:
         "customer writes from this site are allowed (PUBLIC_WEB_ORIGINS)",
         f"{own.status_code}",
     )
-    big = client.post(
-        "/api/v1/auth/login",
-        content=b"{" + b" " * 2_000_000 + b"}",
-        headers={"Content-Type": "application/json"},
-    )
-    r.check(
-        big.status_code == 413, "oversized request bodies are refused (413)", f"{big.status_code}"
-    )
+    # Over a real network the server may answer 413 and close the connection before the upload
+    # has finished; the client then sees the connection dropped. Both mean "refused".
+    try:
+        big = client.post(
+            "/api/v1/auth/login",
+            content=b"{" + b" " * 2_000_000 + b"}",
+            headers={"Content-Type": "application/json"},
+        )
+        refused, detail = big.status_code == 413, f"{big.status_code}"
+    except (httpx.RemoteProtocolError, httpx.ReadError, httpx.WriteError) as exc:
+        refused, detail = True, type(exc).__name__
+    r.check(refused, "oversized request bodies are refused (413)", detail)
 
 
 def check_redirect(r: Report, base: str, http_port: int | None) -> None:
@@ -182,8 +186,9 @@ def check_redirect(r: Report, base: str, http_port: int | None) -> None:
 async def check_socket(r: Report, base: str, context: ssl.SSLContext | None) -> None:
     print("Live updates (WebSocket)")
     url = base.replace("https://", "wss://", 1) + "/api/v1/ws/staff"
+    tls = {"ssl": context} if context is not None else {}  # default: verify the certificate
     try:
-        async with connect(url, ssl=context, open_timeout=10, max_size=None) as socket:
+        async with connect(url, **tls, open_timeout=10, max_size=None) as socket:
             await socket.send(json.dumps({"type": "auth", "access_token": "not-a-token"}))
             try:
                 await asyncio.wait_for(socket.recv(), 10)
@@ -199,7 +204,7 @@ async def check_socket(r: Report, base: str, context: ssl.SSLContext | None) -> 
         r.check(False, "the socket connects through the proxy", repr(exc))
         return
     try:
-        async with connect(url, ssl=context, open_timeout=10, max_size=None) as socket:
+        async with connect(url, **tls, open_timeout=10, max_size=None) as socket:
             await socket.send("x" * 100_000)
             try:
                 await asyncio.wait_for(socket.recv(), 10)
@@ -214,7 +219,7 @@ async def check_socket(r: Report, base: str, context: ssl.SSLContext | None) -> 
     browser = {"Origin": "https://evil.example"}
     what = "pages on other websites cannot open the socket"
     try:
-        async with connect(url, ssl=context, open_timeout=10, additional_headers=browser) as socket:
+        async with connect(url, **tls, open_timeout=10, additional_headers=browser) as socket:
             try:
                 await asyncio.wait_for(socket.recv(), 10)
                 code = None
