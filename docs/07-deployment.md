@@ -51,7 +51,10 @@ sudo mkdir -p /opt/restaurant && sudo chown $USER /opt/restaurant
 git clone <your repository> /opt/restaurant          # or copy it with scp/rsync
 cd /opt/restaurant/deploy
 
-# 3. Configuration with fresh secrets (once; it refuses to overwrite)
+# 3. Configuration with fresh secrets (once; it refuses to overwrite). Add --small on a
+#    1 GiB server (one API process, lighter database and Redis) and create a swap file:
+#    sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile
+#    sudo swapon /swapfile && echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 python3 make_env.py --domain order.yourrestaurant.in --email you@yourrestaurant.in
 nano api.env          # fill in SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD (and SMTP_PORT if not 587)
 ```

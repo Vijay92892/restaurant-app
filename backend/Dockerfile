@@ -25,7 +25,8 @@ EXPOSE 8000
 
 # --ws-max-size: refuse oversized WebSocket frames before they are buffered (docs/06 §7).
 # --no-proxy-headers: client addresses come from X-Forwarded-For only via TRUSTED_PROXIES.
+# Worker processes: WEB_CONCURRENCY (set by deploy/make_env.py: 2, or 1 on a small server).
 CMD ["uvicorn", "app.main:create_app", "--factory", \
-     "--host", "0.0.0.0", "--port", "8000", "--workers", "2", \
+     "--host", "0.0.0.0", "--port", "8000", \
      "--ws-max-size", "65536", "--no-proxy-headers", "--no-server-header", \
      "--timeout-graceful-shutdown", "20"]

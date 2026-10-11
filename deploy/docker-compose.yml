@@ -20,6 +20,13 @@ services:
   db:
     image: postgres:16
     restart: unless-stopped
+    # Memory settings come from .env (make_env.py --small lowers them for a 1 GiB server).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-128MB}
+      - -c
+      - max_connections=${POSTGRES_MAX_CONNECTIONS:-100}
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?run make_env.py first}
       DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:?run make_env.py first}
@@ -50,7 +57,7 @@ services:
       - --appendonly
       - "no"
       - --maxmemory
-      - 256mb
+      - ${REDIS_MAXMEMORY:-256mb}
       - --maxmemory-policy
       - volatile-ttl
       - --requirepass
