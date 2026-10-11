@@ -4,6 +4,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Test builds (`flutter build apk --android-project-arg=test-app=true`, used by
+// deploy/local-test/start.ps1 -Apk) are a separate app, "Staff TEST": installing one never
+// replaces the live staff app on a phone, and each keeps its own sign-in and saved data.
+val testApp = project.findProperty("test-app") == "true"
+
 android {
     namespace = "in.restaurantapp.staff_app"
     compileSdk = flutter.compileSdkVersion
@@ -16,7 +21,8 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "in.restaurantapp.staff_app"
+        applicationId = if (testApp) "in.restaurantapp.staff_app.test" else "in.restaurantapp.staff_app"
+        manifestPlaceholders["appLabel"] = if (testApp) "Staff TEST" else "Restaurant Staff"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

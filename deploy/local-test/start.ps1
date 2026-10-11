@@ -1,13 +1,15 @@
 <#
 Starts a TEMPORARY public test of the whole system from this PC (no server, no card needed):
 the database, the API, the ordering page and a free Cloudflare quick tunnel. Prints the public
-address, the table PIN and the table links, and writes printable QR cards.
+address, the table PIN and the table links, and writes printable QR cards
+(local-test-qr-cards.html). Nothing here touches the live server.
 
     powershell -ExecutionPolicy Bypass -File deploy\local-test\start.ps1
     powershell -ExecutionPolicy Bypass -File deploy\local-test\start.ps1 -Code dhaba-test -Apk
 
   -Code  restaurant code to print the PIN and QR cards for (default: dhaba-test)
-  -Apk   also build the staff app for phones (staff-app-test.apk), set to this address
+  -Apk   also build the staff app for phones (staff-app-test.apk), set to this address. It is a
+         separate app, "Staff TEST": it installs next to the live staff app, never over it.
 
 Stop it with deploy\local-test\stop.ps1. The address changes on every start. Cloudflare deletes a
 quick tunnel when this PC sleeps or loses its connection: then simply run this script again.
@@ -28,7 +30,7 @@ $Tools = Join-Path $Root ".tools"
 $Run = Join-Path $Tools "local-test"
 $Caddy = Join-Path $Tools "caddy.exe"
 $Cloudflared = Join-Path $Tools "cloudflared.exe"
-$Cards = Join-Path $Root "demo-qr-cards.html"
+$Cards = Join-Path $Root "local-test-qr-cards.html"
 
 function Step($text) { Write-Host ""; Write-Host "== $text" -ForegroundColor Cyan }
 
@@ -129,16 +131,16 @@ if ($Apk) {
     Step "Staff app for phones (a few minutes)"
     Push-Location (Join-Path $Root "staff_app")
     try {
-        & flutter build apk --release "--dart-define=API_BASE_URL=$url"
+        & flutter build apk --release "--android-project-arg=test-app=true" "--dart-define=API_BASE_URL=$url"
         if ($LASTEXITCODE) { throw "the app did not build" }
         Copy-Item "build\app\outputs\flutter-apk\app-release.apk" (Join-Path $Root "staff-app-test.apk") -Force
-        Write-Host "staff-app-test.apk is ready: copy it to the phone and install it."
+        Write-Host "staff-app-test.apk is ready: copy it to the phone and install it (it appears as 'Staff TEST')."
     } finally { Pop-Location }
 }
 
 Write-Host ""
 Write-Host "Test is running at: $url" -ForegroundColor Green
-Write-Host "  QR cards:   open demo-qr-cards.html in Chrome and scan one with the phone"
+Write-Host "  QR cards:   open local-test-qr-cards.html in Chrome and scan one with the phone"
 Write-Host "  Staff app:  cd staff_app; flutter run -d windows --dart-define=API_BASE_URL=http://127.0.0.1:8081"
 Write-Host "  Keep this PC awake. If the link stops working, run this script again."
 Write-Host "  Stop:       powershell -ExecutionPolicy Bypass -File deploy\local-test\stop.ps1"

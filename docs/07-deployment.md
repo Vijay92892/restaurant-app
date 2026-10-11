@@ -144,7 +144,9 @@ docker compose ps
 # then, from your laptop: python scripts/check_deployment.py https://<domain>
 ```
 
-If the new version misbehaves: `git checkout <previous commit> && docker compose up -d --build`.
+If the new version misbehaves, go back to the previous live tag (`git tag -l '*-live'`):
+`git checkout v1.0-live && docker compose up -d --build`; later `git checkout main && git pull`.
+Tag each version you put live (README, "Developing without touching the live site").
 A migration that already ran stays (they only add); if one must be undone, restore the backup
 taken just before (§5).
 

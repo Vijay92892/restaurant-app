@@ -126,18 +126,37 @@ flutter build apk --dart-define=API_BASE_URL=https://api.example.com   # release
 * **Screenshots** of every screen: `SCREENSHOTS=1 flutter test test/screenshots_test.dart --update-goldens`
   (images in `test/screens/`).
 
+## Developing without touching the live site
+
+* **`main` is what runs on the server**, and the server changes only when someone runs `git pull`
+  there (docs/07 §4). Every version put live is tagged: `v1.0-live`, `v1.1-live`, ...
+* **New work goes on the `dev` branch** (`git switch dev`), or a branch per feature. Push it to
+  GitHub freely: the server never pulls it.
+* **Test on this PC.** The dev database (`scripts/dev_db.py`) and the public test below are
+  separate from the live data. `start.ps1 -Apk` builds a separate phone app, "Staff TEST", that
+  installs next to the live staff app instead of replacing it, and its QR cards go to
+  `local-test-qr-cards.html`.
+* **Release:** all tests pass, then `git switch main`, `git merge dev`, `git push`, tag it
+  (`git tag -a v1.1-live -m "..."`, `git push origin v1.1-live`), update the server (docs/07 §4,
+  backup first) and run `check_deployment.py`.
+* **Roll back** on the server: `git checkout v1.0-live`, then `docker compose up -d --build` in
+  `deploy/`; back to normal later with `git checkout main && git pull`. Migrations only add tables
+  and columns, so the previous version runs on the newer database; restore the backup only if a
+  migration must be undone.
+
 ## Public test from your own PC (no server)
 
 To try the system on real phones before renting a server, this starts the database, the API,
 the ordering page and a free Cloudflare quick tunnel, then prints a public `https://…` address,
-the table PIN and the table links, and writes printable QR cards (`demo-qr-cards.html`):
+the table PIN and the table links, and writes printable QR cards (`local-test-qr-cards.html`):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File deploy\local-test\start.ps1 [-Code dhaba-test] [-Apk]
 powershell -ExecutionPolicy Bypass -File deploy\local-test\stop.ps1
 ```
 
-`-Apk` also builds the staff app for phones, set to that address. The address changes on every
+`-Apk` also builds the staff app for phones, set to that address, as a separate "Staff TEST" app
+(it installs next to the live staff app, never over it). The address changes on every
 start, and Cloudflare deletes it when the PC sleeps or goes offline — run the script again. For
 testing only: real customers need a server (below). `python -m app.cli show-pin --code <code>`
 prints the current PIN and table links at any time.
