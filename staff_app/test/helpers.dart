@@ -285,6 +285,7 @@ final _admin = {
   'orders.cancel_privileged',
   'orders.cancel_review',
   'pin.manage',
+  'menu.manage',
   'table_sessions.invalidate_all',
   'staff.read',
   'staff.manage',
@@ -580,13 +581,25 @@ class FakeAvailability implements AvailabilityRepository {
 
   AvailabilityMenu menu;
   final changes = <(String, bool)>[];
+
+  /// Hide/show calls: (dish id, shown).
+  final shownChanges = <(String, bool)>[];
   int loads = 0;
+  bool? lastIncludeHidden;
   Object? failWith;
 
   @override
-  Future<AvailabilityMenu> load() async {
+  Future<AvailabilityMenu> load({bool includeHidden = false}) async {
     loads++;
-    return menu;
+    lastIncludeHidden = includeHidden;
+    if (includeHidden) return menu;
+    return AvailabilityMenu(
+      dishes: [
+        for (final d in menu.dishes)
+          if (!d.isHidden) d,
+      ],
+      options: menu.options,
+    );
   }
 
   Future<bool> _set(String id, bool available) async {
@@ -607,6 +620,20 @@ class FakeAvailability implements AvailabilityRepository {
 
   @override
   Future<bool> setOption(String id, {required bool available}) => _set(id, available);
+
+  @override
+  Future<bool> setDishShown(String id, {required bool shown}) async {
+    final failure = failWith;
+    if (failure != null) {
+      failWith = null;
+      throw failure;
+    }
+    shownChanges.add((id, shown));
+    for (final d in menu.dishes) {
+      if (d.id == id) menu = menu.replace(d.withHidden(!shown));
+    }
+    return shown;
+  }
 }
 
 class FakePin implements PinRepository {

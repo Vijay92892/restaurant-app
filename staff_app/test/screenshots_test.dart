@@ -298,6 +298,27 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('14b sold-out and hidden dishes, as a manager', skip: _skip, (tester) async {
+    await phone(tester);
+    final menu = sampleAvailability.replace(sampleAvailability.dishes.first.withHidden(true));
+    await tester.pumpWidget(
+      wrap(
+        BlocProvider(
+          create: (_) => SoldOutCubit(FakeAvailability(menu), canHide: true)..start(),
+          child: const SoldOutPage(),
+        ),
+        auth: signedIn(staff(StaffRole.admin, name: 'Kiran')),
+      ),
+    );
+    await snap(tester, '14b-sold-out-manager');
+    await tester.tap(
+      find.descendant(of: find.byKey(const Key('switch-naan')), matching: find.byType(Switch)),
+    );
+    await tester.pumpAndSettle();
+    await snap(tester, '14c-sold-out-or-hide');
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('15 table PIN', skip: _skip, (tester) async {
     await phone(tester);
     await tester.pumpWidget(

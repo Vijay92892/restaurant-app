@@ -15,7 +15,7 @@
       {"name": "Fresh Lime Water (Sweet & Salted)", "price": 80, "options": ["Sweet or salted"]},
       {"name": "Fresh Lime Soda (Sweet & Salted)", "price": 90, "options": ["Sweet or salted"]},
       {"name": "Shikanji", "price": 80},
-      {"name": "Cold Drinks / Real Juice", "price": 0, "active": false},
+      {"name": "Cold Drinks / Real Juice", "price": null, "description": "Variable price", "active": true},
       {"name": "Special Chaach (Butter Milk)", "price": 85},
       {"name": "Lassi Salted", "price": 110},
       {"name": "Lassi Sweet", "price": 110},

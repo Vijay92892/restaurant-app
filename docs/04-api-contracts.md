@@ -172,7 +172,7 @@ WebSocket `GET /ws/staff` (any signed-in staff role with `orders.read`):
    |---|---|---|
    | `order.created` | `{order: StaffOrder}` | customer or waiter places an order |
    | `order.updated` | `{order: StaffOrder}` | any status change, cancellation, cancellation request or review |
-   | `menu.availability_changed` | `{menu_item_id \| modifier_id, is_available}` | sold out / back |
+   | `menu.availability_changed` | `{menu_item_id \| modifier_id, is_available}` or `{menu_item_id, is_active}` | sold out / back; a manager hides a dish or shows it again |
    | `table.closed` | `{table_id}` | a table is closed |
    | `pin.rotated` | `{version}` — **never the PIN** | manual or scheduled rotation |
    | `pin.bruteforce_suspected` | `{table_id}` | once per window when wrong-PIN attempts hit the restaurant limit |

@@ -269,12 +269,21 @@ async def update_item(
     item = await _get(db, MenuItem, ctx.restaurant_id, item_id)
     if "category_id" in changes:
         await _category_for_body(db, ctx.restaurant_id, changes["category_id"])
+    shown_before = item.is_active
     for key, value in _blank_to_none(changes, "description").items():
         setattr(item, key, value)
     await db.flush()
     await _audit(
         db, ctx, meta, "menu.item_updated", "menu_item", item.id, {"fields": sorted(changes)}
     )
+    if item.is_active != shown_before:
+        # A manager hid the dish (or showed it again): staff screens refresh like for sold out.
+        outbox.stage(
+            db,
+            ctx.restaurant_id,
+            "menu.availability_changed",
+            payload={"menu_item_id": str(item.id), "is_active": item.is_active},
+        )
     await db.commit()
     return item
 

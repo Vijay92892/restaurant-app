@@ -9,6 +9,7 @@ import 'package:staff_app/features/manage/manage_repositories.dart';
 import 'package:staff_app/features/manage/pin_settings_page.dart';
 import 'package:staff_app/features/manage/problem_reports_page.dart';
 import 'package:staff_app/features/manage/staff_page.dart';
+import 'package:staff_app/features/menu/availability.dart';
 import 'package:staff_app/features/menu/sold_out_cubit.dart';
 import 'package:staff_app/features/menu/sold_out_page.dart';
 import 'package:staff_app/features/orders/order_card.dart';
@@ -201,16 +202,22 @@ void main() {
   });
 
   group('sold-out switches', () {
-    Future<(FakeAvailability, FakeLive)> pumpSoldOut(WidgetTester tester) async {
-      final availability = FakeAvailability();
+    Future<(FakeAvailability, FakeLive)> pumpSoldOut(
+      WidgetTester tester, {
+      bool manager = false,
+      AvailabilityMenu menu = sampleAvailability,
+    }) async {
+      final availability = FakeAvailability(menu);
       final live = FakeLive();
       await tester.pumpWidget(
         wrap(
           BlocProvider(
-            create: (_) => SoldOutCubit(availability, live: live)..start(),
+            create: (_) => SoldOutCubit(availability, live: live, canHide: manager)..start(),
             child: const SoldOutPage(),
           ),
-          auth: signedIn(staff(StaffRole.kitchen, name: 'Chef')),
+          auth: signedIn(
+            manager ? staff(StaffRole.admin, name: 'Kiran') : staff(StaffRole.kitchen, name: 'Chef'),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -229,6 +236,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(availability.changes.single, ('paneer', false));
+      expect(availability.lastIncludeHidden, isFalse); // the kitchen never sees hidden dishes
+      expect(find.byKey(const Key('state-hidden')), findsNothing); // no choice for the kitchen
       expect(find.text('SOLD OUT'), findsNWidgets(2));
       expect(find.text('Paneer Tikka is now SOLD OUT'), findsOneWidget);
 
@@ -249,6 +258,97 @@ void main() {
       live.push(const LiveEvent(id: 'e1', type: 'menu.availability_changed'));
       await tester.pumpAndSettle();
       expect(availability.loads, loads + 1);
+    });
+
+    testWidgets('a manager switching a dish off chooses sold out or hidden', (tester) async {
+      final (availability, _) = await pumpSoldOut(tester, manager: true);
+      expect(find.text('Sold-out and hidden dishes'), findsOneWidget);
+      expect(availability.lastIncludeHidden, isTrue);
+
+      Future<void> switchOff(String id) async {
+        await tester.tap(find.descendant(of: find.byKey(Key('switch-$id')), matching: find.byType(Switch)));
+        await tester.pumpAndSettle();
+      }
+
+      await switchOff('paneer');
+      expect(find.byKey(const Key('state-available')), findsNothing); // switching off: two choices
+      await tester.tap(find.byKey(const Key('state-hidden')));
+      await tester.pumpAndSettle();
+      expect(availability.shownChanges.single, ('paneer', false));
+      expect(availability.changes, isEmpty); // hiding leaves sold out alone
+      expect(find.text('HIDDEN'), findsOneWidget);
+      expect(find.text('Paneer Tikka is hidden from the menu'), findsOneWidget);
+      expect(find.text('Sold out or hidden · 2'), findsOneWidget);
+
+      await switchOff('naan');
+      await tester.tap(find.byKey(const Key('state-soldOut')));
+      await tester.pumpAndSettle();
+      expect(availability.changes.single, ('naan', false));
+      expect(availability.shownChanges, hasLength(1)); // naan stays on the menu
+      expect(find.text('Butter Naan is now SOLD OUT'), findsOneWidget);
+
+      // Closing the choice without picking changes nothing.
+      await tester.tap(find.byKey(const Key('switch-chicken65')));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expect(availability.changes, hasLength(1));
+    });
+
+    testWidgets('a hidden dish comes back as sold out, never orderable in between', (tester) async {
+      const menu = AvailabilityMenu(
+        dishes: [
+          Switchable(id: 'naan', name: 'Butter Naan', section: 'Breads', isAvailable: true, isHidden: true),
+        ],
+        options: [],
+      );
+      final (availability, _) = await pumpSoldOut(tester, manager: true, menu: menu);
+      expect(find.text('HIDDEN'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('switch-naan'))); // the row: all three choices
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('state-available')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('state-soldOut')));
+      await tester.pumpAndSettle();
+      // Sold out first, then shown: guests never see it orderable.
+      expect(availability.changes.single, ('naan', false));
+      expect(availability.shownChanges.single, ('naan', true));
+      expect(find.text('SOLD OUT'), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(of: find.byKey(const Key('switch-naan')), matching: find.byType(Switch)),
+      );
+      await tester.pumpAndSettle();
+      expect(availability.changes.last, ('naan', true));
+      expect(find.text('Butter Naan is available again'), findsOneWidget);
+    });
+
+    test('hidden dishes are read only for managers', () {
+      final json = {
+        'categories': [
+          {
+            'name': 'Breads',
+            'is_active': true,
+            'items': [
+              {'id': 'naan', 'name': 'Butter Naan', 'is_active': true, 'is_available': true},
+              {'id': 'roti', 'name': 'Tandoori Roti', 'is_active': false, 'is_available': true},
+            ],
+          },
+          {
+            'name': 'Old menu',
+            'is_active': false,
+            'items': [
+              {'id': 'old', 'name': 'Old dish', 'is_active': true, 'is_available': true},
+            ],
+          },
+        ],
+        'modifier_groups': <dynamic>[],
+      };
+      expect(AvailabilityMenu.fromJson(json).dishes.map((d) => d.id), ['naan']);
+      final manager = AvailabilityMenu.fromJson(json, includeHidden: true);
+      expect(manager.dishes.map((d) => d.id), ['naan', 'roti']);
+      expect(manager.dishes.last.dishState, DishState.hidden);
+      expect(manager.soldOut, 1);
     });
 
     testWidgets('a refused switch says why and shows the server state', (tester) async {

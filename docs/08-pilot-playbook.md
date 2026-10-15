@@ -98,7 +98,8 @@ taken one test order and marked it served.
 1. Everything above, plus **Orders → Waiting for your decision**: cancellation requests, with
    *Yes, cancel it* / *Keep cooking* on the order itself.
 2. **Manage restaurant** (account menu): *Table PIN* (see it, change it now, how often it
-   changes, sign out every guest phone), *Sold-out dishes*, *Staff* (add a person — the app
+   changes, sign out every guest phone), *Sold-out dishes* (switching a dish off asks: *Sold
+   out* for today, or *Hide from the menu* until shown again), *Staff* (add a person — the app
    shows a temporary password once; reset a password; switch someone off), *Problem reports*.
 3. If the PIN gets out (people ordering from outside): *Change PIN now* with *also sign out
    phones already ordering*.

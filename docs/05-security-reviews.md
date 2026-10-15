@@ -548,6 +548,24 @@ and without the developer at every step, and it needs to be measured. New since 
   staff with a one-time password, reset and switch-off, never the owner or oneself, password
   alphabet, route access per role, *Forgot password?*. Screenshots 13–17 reviewed.
 
+### Hide a dish from the menu — managers, in the sold-out screen (added after go-live)
+- **What:** switching a dish off, a manager or the owner chooses *Sold out* (guests still see
+  it, cannot order it) or *Hide from the menu* (`PATCH /menu/items/{id}` with `is_active`);
+  tapping a dish offers all three states. The kitchen's switch still marks sold out only.
+- **Authorization:** unchanged on the server: hiding needs `menu.manage` (owner, admin), sold
+  out `menu.availability`. The app offers the choice only with `menu.manage`; kitchen accounts
+  never load hidden dishes.
+- **Order of changes:** a hidden dish brought back as sold out is marked sold out *before* it is
+  shown, so it is never orderable in between. Hidden dishes are refused by the server for
+  guests and waiters (as before).
+- **Live updates:** hiding or showing a dish now publishes `menu.availability_changed`
+  `{menu_item_id, is_active}` after commit, so other staff screens refresh; other edits to a
+  dish publish nothing.
+- **Tests:** backend `test_menu_and_pin_events_carry_no_secrets` (hide, show, rename sends
+  nothing); Flutter: a manager's two-way choice, a hidden dish coming back sold out (order of
+  calls), the kitchen gets no choice and no hidden dishes, `fromJson` with and without hidden
+  dishes, dismissing the choice changes nothing.
+
 ### Problem reports — `POST/GET /api/v1/problem-reports`
 - **Authentication required:** staff token. **Allowed roles:** every role files
   (`problem_reports.create`); owner/admin read (`problem_reports.read`).

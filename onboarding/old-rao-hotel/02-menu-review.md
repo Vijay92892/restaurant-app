@@ -15,8 +15,11 @@ chain's website menu, so **no entry is confirmed for the Sidhrawali outlet** yet
 - **Nothing was invented.** There are no descriptions, no veg/non-veg/egg marks, no photos and no
   options beyond what a published name spells out. The customer page shows no dietary mark when
   none is set.
-- **One entry is hidden:** *Cold Drinks / Real Juice* is published at ₹0.00. It stays in the
-  draft with that price, switched off (`"active": false`), until the owner gives the real price.
+- **One entry shows "Variable price":** *Cold Drinks / Real Juice* is published at ₹0.00. Decided
+  2026-10-15: it is on the menu with no price and the description "Variable price" (the price
+  depends on the drink), instead of ₹0.
+- **Every other price is exactly as published** (decided 2026-10-15). The staff confirm them
+  later; corrections are re-applied with the same file (part C).
 - **Choices written into a name became option groups.** Each one is a required choice of one:
 
 | Option group | Options | Used by |
@@ -41,8 +44,8 @@ chain's website menu, so **no entry is confirmed for the Sidhrawali outlet** yet
 1. **Branch availability.** Which dishes are actually served at Sidhrawali, and at which prices?
    Tick the checklist at the end; dishes marked "no" will be hidden (`"active": false`), never
    deleted.
-2. **Cold Drinks / Real Juice (₹0.00).** What is the real price? Which drinks or brands should
-   guests choose from? Until then it stays hidden.
+2. **Cold Drinks / Real Juice.** Shown as "Variable price" for now. Should guests choose the
+   drink or brand on the page (an option group, with prices), or is "Variable price" right?
 3. **Pure vegetarian?** Every published dish looks vegetarian, but the website does not say so.
    If the owner confirms it, every dish gets the green veg mark; otherwise no marks.
 4. **"Sweet & Salted" lime water and soda.** Is it a choice of sweet *or* salted, as drafted, or is
@@ -65,11 +68,11 @@ chain's website menu, so **no entry is confirmed for the Sidhrawali outlet** yet
 | *Green / Lemon / Peach Tea* (₹55) and *Lemon Ice Tea* (₹220) | Is the ₹55 tea a hot tea and the ₹220 one iced? Guests may confuse them |
 | *Extra Pav (1 Pc)*, *Extra Bhature (1 Pc)*, *Extra Poori (2 Pcs)* | Separate dishes (as drafted), or add-ons offered on Pav Bhaji, Choley Bhature and Poori Aloo? |
 
-### C. Prices to confirm (not changed in the draft)
+### C. Prices to confirm with the staff (kept as published until then)
 
 | Entry | Published | Why it is flagged |
 |---|---|---|
-| Cold Drinks / Real Juice | ₹0.00 | Zero price (hidden) |
+| Cold Drinks / Real Juice | ₹0.00 | Zero price: shown as "Variable price" |
 | Extra Pav (1 Pc) | ₹75 | High for one pav next to Pav Bhaji at ₹175 |
 | Paneer Bread Pakora / Aloo Bread Pakora | ₹40 / ₹35 | Far below the other pakoras (₹150–180): per piece? |
 | Samosa / Samosa Paneer | ₹35 / ₹45 | Per piece? (not stated, unlike "Rasgulla (1 Pc)") |
@@ -101,7 +104,7 @@ Tick each dish as available or not at Sidhrawali and write the price if it diffe
 | Fresh Lime Water (Sweet & Salted) | ₹80.00 | dish with "Sweet or salted" | ☐ yes ☐ no | |
 | Fresh Lime Soda (Sweet & Salted) | ₹90.00 | dish with "Sweet or salted" | ☐ yes ☐ no | |
 | Shikanji | ₹80.00 | dish | ☐ yes ☐ no | |
-| Cold Drinks / Real Juice | ₹0.00 | dish, HIDDEN (published price ₹0.00) | ☐ yes ☐ no | |
+| Cold Drinks / Real Juice | ₹0.00 | dish, price shown as "Variable price" | ☐ yes ☐ no | |
 | Special Chaach (Butter Milk) | ₹85.00 | dish | ☐ yes ☐ no | |
 | Lassi Salted | ₹110.00 | dish | ☐ yes ☐ no | |
 | Lassi Sweet | ₹110.00 | dish | ☐ yes ☐ no | |

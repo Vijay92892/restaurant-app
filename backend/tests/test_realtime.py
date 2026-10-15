@@ -386,6 +386,21 @@ async def test_menu_and_pin_events_carry_no_secrets(
         assert event["type"] == "menu.availability_changed"
         assert event["payload"] == {"menu_item_id": naan, "is_available": False}
 
+        # A manager hiding the dish (and showing it again) reaches staff screens too; editing
+        # anything else about the dish sends nothing.
+        for shown in (False, True):
+            hidden = await client.patch(
+                f"{M}/items/{naan}", headers=crew["owner"], json={"is_active": shown}
+            )
+            assert hidden.status_code == 200, hidden.text
+            event = await receive(kitchen)
+            assert event["type"] == "menu.availability_changed"
+            assert event["payload"] == {"menu_item_id": naan, "is_active": shown}
+        renamed = await client.patch(
+            f"{M}/items/{naan}", headers=crew["owner"], json={"name": "Butter Naan (2)"}
+        )
+        assert renamed.status_code == 200, renamed.text
+
         rotated = await client.post("/api/v1/pin/rotate", headers=crew["owner"], json={})
         assert rotated.status_code == 200, rotated.text
         new_pin = await current_pin(client, crew["owner"])

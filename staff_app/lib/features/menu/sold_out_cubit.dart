@@ -36,7 +36,7 @@ class SoldOutState extends Equatable {
     final q = query.trim().toLowerCase();
     return [
       for (final s in all)
-        if ((!onlySoldOut || !s.isAvailable) &&
+        if ((!onlySoldOut || s.isOff) &&
             (q.isEmpty || s.name.toLowerCase().contains(q) || s.section.toLowerCase().contains(q)))
           s,
     ];
@@ -64,13 +64,17 @@ class SoldOutState extends Equatable {
   List<Object?> get props => [menu, loading, busy, query, onlySoldOut, message, error];
 }
 
-/// Sold-out switches for the kitchen and managers. Every switch waits for the server (no
-/// optimistic flip): a dish shown as available must really be orderable.
+/// Sold-out switches for the kitchen and managers; managers can also hide a dish from the
+/// menu ([canHide]). Every switch waits for the server (no optimistic flip): a dish shown as
+/// available must really be orderable.
 class SoldOutCubit extends Cubit<SoldOutState> {
-  SoldOutCubit(this._repository, {this._live}) : super(const SoldOutState());
+  SoldOutCubit(this._repository, {this._live, this.canHide = false}) : super(const SoldOutState());
 
   final AvailabilityRepository _repository;
   final LiveUpdates? _live;
+
+  /// The user may take dishes off the menu (`menu.manage`: managers and the owner).
+  final bool canHide;
   StreamSubscription<LiveEvent>? _events;
 
   Future<void> start() async {
@@ -83,7 +87,7 @@ class SoldOutCubit extends Cubit<SoldOutState> {
 
   Future<void> refresh() async {
     try {
-      final menu = await _repository.load();
+      final menu = await _repository.load(includeHidden: canHide);
       if (!isClosed) emit(state.copyWith(menu: menu, loading: false));
     } on ApiException catch (error) {
       if (!isClosed) emit(state.copyWith(loading: false, error: error.message));
@@ -96,6 +100,41 @@ class SoldOutCubit extends Cubit<SoldOutState> {
 
   Future<void> setDish(Switchable dish, {required bool available}) =>
       _set(dish, available, () => _repository.setDish(dish.id, available: available));
+
+  /// Managers: available, sold out or hidden. Availability changes before visibility, so a
+  /// dish brought back as sold out is never orderable in between.
+  Future<void> setDishState(Switchable dish, DishState target) async {
+    if (state.busy.contains(dish.id) || target == dish.dishState) return;
+    emit(state.copyWith(busy: {...state.busy, dish.id}));
+    try {
+      var now = dish;
+      if (target == DishState.hidden) {
+        now = now.withHidden(!await _repository.setDishShown(dish.id, shown: false));
+      } else {
+        final available = target == DishState.available;
+        if (now.isAvailable != available) {
+          now = now.withAvailable(await _repository.setDish(dish.id, available: available));
+        }
+        if (now.isHidden) now = now.withHidden(!await _repository.setDishShown(dish.id, shown: true));
+      }
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          menu: state.menu?.replace(now),
+          busy: {...state.busy}..remove(dish.id),
+          message: switch (now.dishState) {
+            DishState.available => '${dish.name} is available again',
+            DishState.soldOut => '${dish.name} is now SOLD OUT',
+            DishState.hidden => '${dish.name} is hidden from the menu',
+          },
+        ),
+      );
+    } on ApiException catch (error) {
+      if (isClosed) return;
+      emit(state.copyWith(busy: {...state.busy}..remove(dish.id), message: error.message));
+      await refresh();
+    }
+  }
 
   Future<void> setOption(Switchable option, {required bool available}) =>
       _set(option, available, () => _repository.setOption(option.id, available: available));

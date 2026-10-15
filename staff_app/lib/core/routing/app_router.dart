@@ -113,9 +113,11 @@ GoRouter buildRouter(AuthBloc auth, {String? rememberedCode}) {
       GoRoute(
         path: '/sold-out',
         builder: (context, _) => BlocProvider(
-          create: (context) =>
-              SoldOutCubit(context.read<AvailabilityRepository>(), live: context.read<LiveUpdates>())
-                ..start(),
+          create: (context) => SoldOutCubit(
+            context.read<AvailabilityRepository>(),
+            live: context.read<LiveUpdates>(),
+            canHide: auth.state.user?.can(Perm.menuManage) ?? false,
+          )..start(),
           child: const SoldOutPage(),
         ),
       ),

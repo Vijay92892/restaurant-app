@@ -30,10 +30,12 @@ class ManagePage extends StatelessWidget {
               path: '/manage/pin',
             ),
           if (user.can(Perm.menuAvailability))
-            const _Entry(
+            _Entry(
               icon: Icons.no_food_rounded,
               title: 'Sold-out dishes',
-              subtitle: 'Stop dishes and options from being ordered',
+              subtitle: user.can(Perm.menuManage)
+                  ? 'Mark dishes sold out, or hide them from the menu'
+                  : 'Stop dishes and options from being ordered',
               path: '/sold-out',
             ),
           if (user.can(Perm.staffRead))

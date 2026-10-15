@@ -5,14 +5,16 @@ import 'availability.dart';
 import 'sold_out_cubit.dart';
 
 /// Mark dishes and options sold out (or back) during service. Customers and waiters stop
-/// seeing them as orderable at once.
+/// seeing them as orderable at once. Managers choose between sold out (still shown) and
+/// hidden (taken off the menu) when they switch a dish off.
 class SoldOutPage extends StatelessWidget {
   const SoldOutPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final canHide = context.read<SoldOutCubit>().canHide;
     return Scaffold(
-      appBar: AppBar(title: const Text('Sold-out dishes')),
+      appBar: AppBar(title: Text(canHide ? 'Sold-out and hidden dishes' : 'Sold-out dishes')),
       body: BlocConsumer<SoldOutCubit, SoldOutState>(
         listenWhen: (a, b) => b.message != null && a.message != b.message,
         listener: (context, state) => ScaffoldMessenger.of(context)
@@ -41,8 +43,15 @@ class SoldOutPage extends StatelessWidget {
                       child: Text(state.onlySoldOut ? 'Nothing is sold out.' : 'No dish or option matches.'),
                     ),
                   ),
-                ..._section(context, 'Dishes', dishes, state, cubit.setDish),
-                ..._section(context, 'Options', options, state, cubit.setOption),
+                ..._section(
+                  context,
+                  'Dishes',
+                  dishes,
+                  state,
+                  _dishSwitch(context, cubit),
+                  _dishTap(context, cubit),
+                ),
+                ..._section(context, 'Options', options, state, cubit.setOption, null),
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
             ),
@@ -52,12 +61,78 @@ class SoldOutPage extends StatelessWidget {
     );
   }
 
+  /// The kitchen's switch marks sold out directly; a manager switching a dish off chooses
+  /// between sold out and hidden.
+  _Set _dishSwitch(BuildContext context, SoldOutCubit cubit) {
+    if (!cubit.canHide) return cubit.setDish;
+    return (dish, {required available}) async {
+      if (available) return cubit.setDishState(dish, DishState.available);
+      final choice = await _chooseState(context, dish, offOnly: true);
+      if (choice != null) await cubit.setDishState(dish, choice);
+    };
+  }
+
+  /// Managers: tapping a dish offers all three states.
+  void Function(Switchable)? _dishTap(BuildContext context, SoldOutCubit cubit) {
+    if (!cubit.canHide) return null;
+    return (dish) async {
+      final choice = await _chooseState(context, dish, offOnly: false);
+      if (choice != null) await cubit.setDishState(dish, choice);
+    };
+  }
+
+  Future<DishState?> _chooseState(BuildContext context, Switchable dish, {required bool offOnly}) {
+    Widget choice(BuildContext sheet, DishState value, IconData icon, String title, String subtitle) =>
+        ListTile(
+          key: Key('state-${value.name}'),
+          leading: Icon(icon),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          trailing: dish.dishState == value ? const Icon(Icons.check_rounded) : null,
+          onTap: () => Navigator.pop(sheet, value),
+        );
+    return showModalBottomSheet<DishState>(
+      context: context,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(title: Text(dish.name, style: Theme.of(sheet).textTheme.titleLarge)),
+            if (!offOnly)
+              choice(
+                sheet,
+                DishState.available,
+                Icons.check_circle_outline_rounded,
+                'Available',
+                'Guests can order it',
+              ),
+            choice(
+              sheet,
+              DishState.soldOut,
+              Icons.block_rounded,
+              'Sold out',
+              "Guests still see it but can't order it",
+            ),
+            choice(
+              sheet,
+              DishState.hidden,
+              Icons.visibility_off_rounded,
+              'Hide from the menu',
+              "Guests and waiters don't see it until you show it again",
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   List<Widget> _section(
     BuildContext context,
     String title,
     List<Switchable> entries,
     SoldOutState state,
-    Future<void> Function(Switchable, {required bool available}) set,
+    _Set set,
+    void Function(Switchable)? tap,
   ) {
     if (entries.isEmpty) return const [];
     final theme = Theme.of(context);
@@ -76,7 +151,7 @@ class SoldOutPage extends StatelessWidget {
           ),
         );
       }
-      rows.add(_SwitchRow(entry: entry, busy: state.busy.contains(entry.id), onChanged: set));
+      rows.add(_SwitchRow(entry: entry, busy: state.busy.contains(entry.id), onChanged: set, onTap: tap));
     }
     return [
       SliverToBoxAdapter(
@@ -114,7 +189,7 @@ class _Filters extends StatelessWidget {
           const SizedBox(height: 8),
           FilterChip(
             avatar: const Icon(Icons.block_rounded, size: 18),
-            label: Text('Sold out only · $soldOut'),
+            label: Text(cubit.canHide ? 'Sold out or hidden · $soldOut' : 'Sold out only · $soldOut'),
             selected: state.onlySoldOut,
             onSelected: cubit.showOnlySoldOut,
           ),
@@ -124,19 +199,29 @@ class _Filters extends StatelessWidget {
   }
 }
 
+typedef _Set = Future<void> Function(Switchable, {required bool available});
+
 /// One dish/option: its state in words and an icon (never colour alone) and a switch.
 class _SwitchRow extends StatelessWidget {
-  const _SwitchRow({required this.entry, required this.busy, required this.onChanged});
+  const _SwitchRow({required this.entry, required this.busy, required this.onChanged, this.onTap});
 
   final Switchable entry;
   final bool busy;
-  final Future<void> Function(Switchable, {required bool available}) onChanged;
+  final _Set onChanged;
+
+  /// Managers: open the choice of states instead of flipping the switch.
+  final void Function(Switchable)? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final soldOut = !entry.isAvailable;
+    final soldOut = entry.isOff;
     final color = soldOut ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant;
+    final (icon, label) = switch (entry.dishState) {
+      DishState.hidden => (Icons.visibility_off_rounded, 'HIDDEN'),
+      DishState.soldOut => (Icons.block_rounded, 'SOLD OUT'),
+      DishState.available => (Icons.check_circle_outline_rounded, 'Available'),
+    };
     return MergeSemantics(
       child: ListTile(
         key: Key('switch-${entry.id}'),
@@ -148,10 +233,10 @@ class _SwitchRow extends StatelessWidget {
         ),
         subtitle: Row(
           children: [
-            Icon(soldOut ? Icons.block_rounded : Icons.check_circle_outline_rounded, size: 16, color: color),
+            Icon(icon, size: 16, color: color),
             const SizedBox(width: 4),
             Text(
-              soldOut ? 'SOLD OUT' : 'Available',
+              label,
               style: TextStyle(color: color, fontWeight: soldOut ? FontWeight.w800 : FontWeight.w500),
             ),
           ],
@@ -159,10 +244,14 @@ class _SwitchRow extends StatelessWidget {
         trailing: busy
             ? const SizedBox.square(dimension: 24, child: CircularProgressIndicator(strokeWidth: 3))
             : Switch(
-                value: entry.isAvailable,
+                value: !soldOut,
                 onChanged: (value) => onChanged(entry, available: value),
               ),
-        onTap: busy ? null : () => onChanged(entry, available: soldOut),
+        onTap: busy
+            ? null
+            : onTap != null
+            ? () => onTap!(entry)
+            : () => onChanged(entry, available: soldOut),
       ),
     );
   }
