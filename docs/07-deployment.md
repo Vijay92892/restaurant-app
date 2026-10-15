@@ -144,6 +144,11 @@ docker compose ps
 # then, from your laptop: python scripts/check_deployment.py https://<domain>
 ```
 
+If the build fails (for example `ReadTimeoutError` while downloading packages: slow links to
+PyPI or npm), nothing was replaced: the old containers keep running. Run
+`docker compose up -d --build` again. Python packages are downloaded only when
+`backend/pyproject.toml` changes; code-only updates build without them.
+
 If the new version misbehaves, go back to the previous live tag (`git tag -l '*-live'`):
 `git checkout v1.0-live && docker compose up -d --build`; later `git checkout main && git pull`.
 Tag each version you put live (README, "Developing without touching the live site").

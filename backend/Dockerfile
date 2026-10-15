@@ -2,19 +2,29 @@
 # deploy/docker-compose.yml (see docs/07-deployment.md); also runs migrations and the operator CLI.
 FROM python:3.12-slim
 
+# PIP_DEFAULT_TIMEOUT / PIP_RETRIES: downloads from PyPI can be slow from some cloud regions.
+# As environment variables they also reach pip's build subprocess, which ignores the
+# command-line --default-timeout (a build once failed there on its 15-second default).
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10
 
 WORKDIR /app
 RUN groupadd --system app && useradd --system --gid app --home-dir /app --no-create-home app
 
-# Dependencies and the application package (no tests, scripts or local state: .dockerignore).
+# Dependencies first, in their own layer: downloaded again only when pyproject.toml changes,
+# not for every code change. The build tool (setuptools) comes with them, so installing the
+# application itself needs no network. (No tests, scripts or local state: .dockerignore.)
 COPY pyproject.toml ./
+RUN python -c "import tomllib; p = tomllib.load(open('pyproject.toml', 'rb')); print('\n'.join(p['build-system']['requires'] + p['project']['dependencies']))" > /tmp/requirements.txt \
+ && pip install -r /tmp/requirements.txt \
+ && rm /tmp/requirements.txt
 COPY app ./app
-RUN pip install --default-timeout=120 --retries 10 .
+RUN pip install --no-deps --no-build-isolation .
 COPY alembic ./alembic
 COPY alembic.ini ./
 
