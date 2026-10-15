@@ -45,3 +45,7 @@ local-test-qr-cards.html
 *.apk
 # Downloaded helper programs and logs of the local public test (deploy/local-test)
 .tools/
+# Restaurant onboarding: owner answers, final setup files (staff names) and printed cards
+onboarding/*/setup.final.json
+onboarding/*/private/
+*-cards.html

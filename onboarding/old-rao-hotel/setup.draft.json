@@ -1,0 +1,221 @@
+{
+  "tables": [],
+  "staff": [],
+  "option_groups": [
+    {"name": "Sweet or salted", "min": 1, "max": 1, "options": ["Sweet", "Salted"]},
+    {"name": "Flavour (Green, Lemon, Peach)", "min": 1, "max": 1, "options": ["Green", "Lemon", "Peach"]},
+    {"name": "Flavour (Mango, Butter Scotch, Chocolate)", "min": 1, "max": 1, "options": ["Mango", "Butter Scotch", "Chocolate"]},
+    {"name": "Flavour (Vanilla, Strawberry, Pineapple)", "min": 1, "max": 1, "options": ["Vanilla", "Strawberry", "Pineapple"]},
+    {"name": "Dry or gravy", "min": 1, "max": 1, "options": ["Dry", "Gravy"]},
+    {"name": "Raita (Pineapple or Fruit)", "min": 1, "max": 1, "options": ["Pineapple", "Fruit"]},
+    {"name": "Add Dahi", "min": 0, "max": 1, "options": [{"name": "With Dahi", "price": 40}]}
+  ],
+  "menu": [
+    {"category": "Beverages", "dishes": [
+      {"name": "Fresh Lime Water (Sweet & Salted)", "price": 80, "options": ["Sweet or salted"]},
+      {"name": "Fresh Lime Soda (Sweet & Salted)", "price": 90, "options": ["Sweet or salted"]},
+      {"name": "Shikanji", "price": 80},
+      {"name": "Cold Drinks / Real Juice", "price": 0, "active": false},
+      {"name": "Special Chaach (Butter Milk)", "price": 85},
+      {"name": "Lassi Salted", "price": 110},
+      {"name": "Lassi Sweet", "price": 110},
+      {"name": "Cold Coffee with Vanilla Ice-cream", "price": 185},
+      {"name": "Cold Coffee", "price": 150},
+      {"name": "Green / Lemon / Peach Tea", "price": 55, "options": ["Flavour (Green, Lemon, Peach)"]}
+    ]},
+    {"category": "Pakora", "dishes": [
+      {"name": "Pyaz Pakora", "price": 150},
+      {"name": "Aloo Pyaz Pakora", "price": 150},
+      {"name": "Vegetable Pakora", "price": 150},
+      {"name": "Paneer Pakora", "price": 180},
+      {"name": "Paneer Bread Pakora", "price": 40},
+      {"name": "Aloo Bread Pakora", "price": 35}
+    ]},
+    {"category": "Mocktails & Shakes", "dishes": [
+      {"name": "Mango / Butter Scotch / Chocolate Shake", "price": 185, "options": ["Flavour (Mango, Butter Scotch, Chocolate)"]},
+      {"name": "Vanilla / Strawberry / Pineapple Shake", "price": 175, "options": ["Flavour (Vanilla, Strawberry, Pineapple)"]},
+      {"name": "Lemon Ice Tea", "price": 220},
+      {"name": "Blue Lagoon", "price": 220},
+      {"name": "Green Apple", "price": 150},
+      {"name": "Virgin Mojito", "price": 150}
+    ]},
+    {"category": "Indian Snacks", "dishes": [
+      {"name": "Aloo Tikki", "price": 110},
+      {"name": "Samosa Paneer", "price": 45},
+      {"name": "Samosa", "price": 35},
+      {"name": "Extra Pav (1 Pc)", "price": 75},
+      {"name": "Pav Bhaji", "price": 175},
+      {"name": "Extra Bhature (1 Pc)", "price": 70},
+      {"name": "Extra Poori (2 Pcs)", "price": 70},
+      {"name": "Poori Aloo with Halwa (4 Pcs)", "price": 200},
+      {"name": "Choley Bhature (2 Pcs)", "price": 200}
+    ]},
+    {"category": "Chaap / Tikka", "dishes": [
+      {"name": "Paneer Afghani Tikka", "price": 330},
+      {"name": "Paneer Malai Tikka", "price": 330},
+      {"name": "Paneer Achari Tikka", "price": 330},
+      {"name": "Paneer Tikka", "price": 320},
+      {"name": "Tandoori Platter", "price": 560},
+      {"name": "Special Mushroom Tikka", "price": 330},
+      {"name": "Afghani Tikka", "price": 310},
+      {"name": "Achari Tikka", "price": 310},
+      {"name": "Malai Tikka", "price": 310},
+      {"name": "Soya Tikka", "price": 295}
+    ]},
+    {"category": "Sandwich / Burger", "dishes": [
+      {"name": "Combo Platter", "price": 240},
+      {"name": "French Fries", "price": 135},
+      {"name": "Paneer Burger", "price": 140},
+      {"name": "Veggie Delight Burger", "price": 115},
+      {"name": "Cheese Burger", "price": 115},
+      {"name": "Aloo Tikki Burger", "price": 88},
+      {"name": "Mexican Sandwich", "price": 170},
+      {"name": "Butter Toast", "price": 110},
+      {"name": "Veg Paneer Sandwich", "price": 180},
+      {"name": "Cheese Grilled Sandwich", "price": 165}
+    ]},
+    {"category": "Pizza Special", "dishes": [
+      {"name": "Rao Special Cheese Pizza", "price": 310},
+      {"name": "Mix Pizza", "price": 290},
+      {"name": "Onion Capsicum Pizza", "price": 290},
+      {"name": "Onion Tomato Pizza", "price": 250}
+    ]},
+    {"category": "Street Food", "dishes": [
+      {"name": "Bharwan Gol Gappe", "price": 125},
+      {"name": "Gol Gappe (6 pcs)", "price": 60},
+      {"name": "Raj Kachori", "price": 160},
+      {"name": "Bhalla Papdi", "price": 150},
+      {"name": "Papdi Chaat", "price": 150},
+      {"name": "Dahi Bhalla", "price": 150}
+    ]},
+    {"category": "South Indian", "dishes": [
+      {"name": "Sambhar Idly", "price": 175},
+      {"name": "Sambhar Vada", "price": 175},
+      {"name": "Rao Special Mix Uttapam", "price": 255},
+      {"name": "Tomato Uttapam", "price": 235},
+      {"name": "Onion Tomato Uttapam", "price": 235},
+      {"name": "Onion Uttapam", "price": 235},
+      {"name": "Butter Masala Dosa", "price": 235},
+      {"name": "Butter Plain Dosa", "price": 205},
+      {"name": "Onion Dosa", "price": 215},
+      {"name": "Paneer Dosa", "price": 275}
+    ]},
+    {"category": "Chinese", "dishes": [
+      {"name": "Veg Fried Rice", "price": 225},
+      {"name": "Hakka Noodle", "price": 215},
+      {"name": "Chilli Garlic Noodle", "price": 200},
+      {"name": "Cheese Noodle", "price": 200},
+      {"name": "Vegetable Noodle", "price": 190},
+      {"name": "Veg Manchurian Dry / Gravy", "price": 270, "options": ["Dry or gravy"]},
+      {"name": "Chilli Mushroom Dry / Gravy", "price": 310, "options": ["Dry or gravy"]},
+      {"name": "Chilli Paneer Dry / Gravy", "price": 300, "options": ["Dry or gravy"]},
+      {"name": "Spring Roll", "price": 185},
+      {"name": "Chilli Potato", "price": 230}
+    ]},
+    {"category": "Soups", "dishes": [
+      {"name": "Hot & Sour Soup", "price": 160},
+      {"name": "Manchow Soup", "price": 160},
+      {"name": "Sweet Corn Soup", "price": 160},
+      {"name": "Vegetable Soup", "price": 150},
+      {"name": "Tomato Soup", "price": 150}
+    ]},
+    {"category": "Paneer Special", "dishes": [
+      {"name": "Paneer Do Pyaza", "price": 362},
+      {"name": "Paneer Lababdar", "price": 362},
+      {"name": "Rao Special Paneer Butter Masala", "price": 362},
+      {"name": "Handi Paneer", "price": 362},
+      {"name": "Paneer Tikka Masala", "price": 395},
+      {"name": "Rao Special Chilli Paneer", "price": 329},
+      {"name": "Kadhai Paneer", "price": 330},
+      {"name": "Mattar Paneer", "price": 320},
+      {"name": "Shahi Paneer", "price": 320},
+      {"name": "Palak Paneer", "price": 310}
+    ]},
+    {"category": "Mushroom Special", "dishes": [
+      {"name": "Kadhai Mushroom", "price": 373},
+      {"name": "Masala Mushroom", "price": 330},
+      {"name": "Mattar Mushroom", "price": 330}
+    ]},
+    {"category": "Har Man Ki Pasand", "dishes": [
+      {"name": "Aloo Methi", "price": 285},
+      {"name": "Dum Aloo Kashmiri", "price": 320},
+      {"name": "Dum Aloo", "price": 255},
+      {"name": "Aloo Mattar", "price": 210},
+      {"name": "Aloo Jeera", "price": 210},
+      {"name": "Aloo Palak", "price": 210},
+      {"name": "Palak Corn", "price": 280},
+      {"name": "Mix Vegetable", "price": 285},
+      {"name": "Gobhi Masala", "price": 210},
+      {"name": "Gobhi Do Pyaza", "price": 210}
+    ]},
+    {"category": "Dal Special", "dishes": [
+      {"name": "Dal Dhaba", "price": 324},
+      {"name": "Chana Amritshari", "price": 339},
+      {"name": "Rajma Rashila", "price": 258},
+      {"name": "Chana Masala", "price": 240},
+      {"name": "Dal Makhani", "price": 290},
+      {"name": "Dal Tadka", "price": 250},
+      {"name": "Dal Fry", "price": 250}
+    ]},
+    {"category": "Raita & Salad", "dishes": [
+      {"name": "Masala Papad", "price": 70},
+      {"name": "Fry Papad", "price": 45},
+      {"name": "Tandoori Papad", "price": 35},
+      {"name": "Green Salad", "price": 90},
+      {"name": "Pineapple / Fruit Raita", "price": 210, "options": ["Raita (Pineapple or Fruit)"]},
+      {"name": "Mix Veg Raita", "price": 165},
+      {"name": "Boondi Raita", "price": 160},
+      {"name": "Plain Dahi", "price": 110}
+    ]},
+    {"category": "Thali", "dishes": [
+      {"name": "Veg Thali", "price": 285},
+      {"name": "Rao Special Thali", "price": 365}
+    ]},
+    {"category": "Combo Meal", "dishes": [
+      {"name": "Dal Makhani Rice", "price": 285},
+      {"name": "Chana Rice", "price": 285},
+      {"name": "Kadhi Rice", "price": 230},
+      {"name": "Rajma Rice", "price": 250}
+    ]},
+    {"category": "Rice Special", "dishes": [
+      {"name": "Tandoori Chaap Biryani", "price": 340},
+      {"name": "Veg Biryani", "price": 280},
+      {"name": "Paneer Pulao", "price": 255},
+      {"name": "Mattar Pulao", "price": 230},
+      {"name": "Veg Pulao", "price": 230},
+      {"name": "Jeera Rice", "price": 180},
+      {"name": "Plain Rice", "price": 160}
+    ]},
+    {"category": "Indian Paratha", "dishes": [
+      {"name": "Mix Paratha", "price": 135, "options": ["Add Dahi"]},
+      {"name": "Aloo Pyaz Paratha", "price": 125, "options": ["Add Dahi"]},
+      {"name": "Aloo Paratha", "price": 125, "options": ["Add Dahi"]},
+      {"name": "Gobhi Paratha", "price": 125, "options": ["Add Dahi"]},
+      {"name": "Paneer Paratha", "price": 145, "options": ["Add Dahi"]}
+    ]},
+    {"category": "Indian Bread", "dishes": [
+      {"name": "Rao Special Onion Kulcha", "price": 135},
+      {"name": "Laccha Paratha", "price": 70},
+      {"name": "Paneer Naan", "price": 140},
+      {"name": "Garlic Naan", "price": 115},
+      {"name": "Gobhi Naan", "price": 125},
+      {"name": "Stuffed Naan", "price": 125},
+      {"name": "Aloo Naan", "price": 115},
+      {"name": "Butter Naan", "price": 80},
+      {"name": "Plain Naan", "price": 70},
+      {"name": "Onion Missi Roti", "price": 70}
+    ]},
+    {"category": "Sweet Dishes", "dishes": [
+      {"name": "Malai Roll", "price": 70},
+      {"name": "Angoori Rasmalai", "price": 70},
+      {"name": "Pineapple Rabri", "price": 75},
+      {"name": "Fruit Rabri", "price": 75},
+      {"name": "Bengali Sweets (1 Pc)", "price": 50},
+      {"name": "Moong Dal Halwa", "price": 100},
+      {"name": "Kesar Kheer", "price": 100},
+      {"name": "Rabri (50 Gm)", "price": 70},
+      {"name": "Jalebi (100 Gm)", "price": 95},
+      {"name": "Rasgulla (1 Pc)", "price": 40}
+    ]}
+  ]
+}
