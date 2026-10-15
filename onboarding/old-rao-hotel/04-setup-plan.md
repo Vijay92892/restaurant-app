@@ -15,7 +15,7 @@ Server commands run in `/opt/restaurant/deploy` as `azureuser`.
 |---|---|---|
 | 0.1 | Owner's answers (03) and the menu checklist (02) complete and signed | Operator with the owner |
 | 0.2 | Decide the gaps in 01 (search, logo, stations, Hindi). Any code change goes through `dev` → tests → release → server update (README, "Developing without touching the live site") | Operator |
-| 0.3 | Install the released `v1.1-live` (operator `reset-password`) on the server: `sh backup.sh && git pull && docker compose up -d --build`. Not yet done: the server runs `v1.0-live` | Operator, at a quiet hour |
+| 0.3 | Install release `v1.2-live` (operator `reset-password`, menu search) on the server: `sh backup.sh && git pull && docker compose up -d --build`, as in 05, part A. Not yet done: the server runs `v1.0-live` | Operator, at a quiet hour |
 | 0.4 | Build `setup.final.json` from `setup.draft.json` plus the answers: tables (C2), staff (G; owner excluded, see step 4), hidden dishes (`"active": false`), corrected prices, extra option groups (E). Kept out of Git | Developer |
 | 0.5 | Check it on the development PC: dry run on a fresh throwaway restaurant, apply, run again → **0 changes** | Developer |
 | 0.6 | Copy the backups off the server (`scp -r azureuser@172.198.57.41:/opt/restaurant/deploy/backups D:\restaurant-backups`) | Operator |

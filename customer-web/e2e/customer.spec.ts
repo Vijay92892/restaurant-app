@@ -123,6 +123,33 @@ test("a double tap on Place order sends exactly one order, which can be cancelle
   await expect(page.locator(".order").first().getByText("Cancelled", { exact: true })).toBeVisible();
 });
 
+test("diners can search the menu and order from the results", async ({ page }) => {
+  await seat(page);
+  const search = page.getByRole("searchbox", { name: "Search the menu" });
+  const sections = page.getByRole("navigation", { name: "Menu sections" });
+
+  await search.fill("naan");
+  await expect(page.getByText("Butter Naan")).toBeVisible();
+  await expect(page.getByText("Paneer Tikka")).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Starters" })).toBeHidden();
+  await expect(sections).toBeHidden();
+  await expect(page.locator("#search-results")).toHaveText("1 dish found");
+
+  await page.getByRole("button", { name: "Add Butter Naan" }).click();
+  await expect(page.getByRole("button", { name: /View order · 1 item/ })).toBeVisible();
+  await expect(search).toHaveValue("naan");
+
+  await search.fill("panner"); // everyday spelling
+  await expect(page.getByText("Paneer Tikka")).toBeVisible();
+
+  await search.fill("pizza");
+  await expect(page.getByText("No dishes match “pizza”.")).toBeVisible();
+  await page.getByRole("button", { name: "Show the whole menu" }).click();
+  await expect(search).toHaveValue("");
+  await expect(page.getByRole("heading", { name: "Starters" })).toBeVisible();
+  await expect(sections).toBeVisible();
+});
+
 test("dish names are shown as text, never run as code", async ({ page }) => {
   let alerted = false;
   page.on("dialog", (dialog) => {

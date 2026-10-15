@@ -53,6 +53,10 @@ test("capture every customer screen", async ({ page, playwright }) => {
   await page.getByLabel("Enter the table PIN").fill(pin);
   await expect(page.getByRole("heading", { name: "Starters" })).toBeVisible();
   await shot("2-menu");
+  await page.getByRole("searchbox", { name: "Search the menu" }).fill("butter");
+  await expect(page.getByText("Butter Chicken")).toBeVisible();
+  await shot("2b-search");
+  await page.getByRole("searchbox", { name: "Search the menu" }).fill("");
   await page.getByRole("button", { name: "Add Paneer Tikka" }).click();
   const sheet = page.getByRole("dialog", { name: "Paneer Tikka" });
   await sheet.getByRole("radio", { name: "Medium" }).check();

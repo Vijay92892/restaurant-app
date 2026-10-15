@@ -19,6 +19,8 @@ detail here is unconfirmed until the restaurant confirms it (questionnaire, file
 | [02-menu-review.md](02-menu-review.md) | How the website menu became the draft, every entry that needs the owner's answer, and a dish-by-dish availability checklist |
 | [03-owner-questionnaire.md](03-owner-questionnaire.md) | The form to fill in with the owner |
 | [04-setup-plan.md](04-setup-plan.md) | Step-by-step production setup (dry run first, approval before applying) and the acceptance tests |
+| [05-demo-guide.md](05-demo-guide.md) | The demo restaurant "Old Rao Hotel (Demo)" for the first meeting: how to put it on the server and how to present it |
+| [demo-extras.json](demo-extras.json) | The demo's 10 tables and 3 demo staff accounts (no personal data) |
 
 ## Checks already done on the draft (development PC only)
 
@@ -27,6 +29,8 @@ detail here is unconfirmed until the restaurant confirms it (questionnaire, file
   22 categories and 162 dishes, and nothing else.
 - Applied to a throwaway local restaurant (`zz-menu-check`, development database), then run again:
   **0 changes** the second time (safe to re-run, no duplicates).
+- The demo's whole server sequence (05, part A) rehearsed on the development database, and the
+  demo's ordering page checked on an emulated phone (menu, search, "With Dahi", Dry or gravy).
 
 ## Rules for this folder
 

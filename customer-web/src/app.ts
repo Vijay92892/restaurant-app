@@ -21,6 +21,7 @@ import {
 import { type Child, h, mount } from "./dom.ts";
 import { DIETARY_LABEL, STATUS, formatDelta, formatPrice, formatTime, plural, retryText } from "./format.ts";
 import { defaultSelection, groupError, groupRule, toggleOption } from "./options.ts";
+import { countDishes, filterMenu, isSearching } from "./search.ts";
 import { newIdempotencyKey, storage } from "./storage.ts";
 import type { Landing, MenuGroup, MenuItem, Order, PublicMenu } from "./types.ts";
 
@@ -41,6 +42,7 @@ interface State {
   ordersEtag: string | null;
   cart: Cart;
   placing: boolean;
+  query: string; // menu search, kept while the menu refreshes
 }
 
 let state: State;
@@ -81,6 +83,7 @@ export async function start(element: HTMLElement): Promise<void> {
     ordersEtag: null,
     cart: parseStoredCart(storage.get(`cart:${match[1]}`)),
     placing: false,
+    query: "",
   };
   document.title = `${landing.restaurant_name} · Table ${landing.table_label}`;
   document.addEventListener("visibilitychange", () => {
@@ -297,13 +300,8 @@ function renderMenu(): void {
   const menu = state.menu;
   if (!menu) return;
   const groups = groupsById();
-  const sections = menu.categories.map((category) =>
-    h("section", { class: "category", attrs: { id: `cat-${category.id}`, "aria-labelledby": `h-${category.id}` } },
-      h("h2", { attrs: { id: `h-${category.id}` }, text: category.name }),
-      category.description ? h("p", { class: "category-desc", text: category.description }) : null,
-      h("ul", { class: "items" }, ...category.items.map((item) => itemCard(item, groups))),
-    ),
-  );
+  // The menu re-renders when it changes on the server: keep the guest's typing and focus.
+  const typing = document.activeElement?.id === "menu-search";
   const chips = h("nav", { class: "cats", attrs: { "aria-label": "Menu sections" } },
     ...menu.categories.map((category) =>
       h("button", {
@@ -313,18 +311,75 @@ function renderMenu(): void {
       }),
     ),
   );
+  const main = h("main", { class: "menu" });
+  // Announced to screen readers; not a role="status" (that is the toast region).
+  const found = h("p", { class: "sr-only", attrs: { id: "search-results", "aria-live": "polite", "aria-atomic": "true" } });
+  const search = h("input", {
+    attrs: {
+      id: "menu-search",
+      type: "search",
+      placeholder: "Search dishes",
+      "aria-label": "Search the menu",
+      autocomplete: "off",
+      spellcheck: "false",
+      enterkeyhint: "search",
+      maxlength: 60,
+    },
+    on: {
+      input: () => setQuery(search.value),
+      keydown: (event) => {
+        if (event.key === "Enter") search.blur(); // closes the phone keyboard
+        if (event.key === "Escape") setQuery("");
+      },
+    },
+  });
+  search.value = state.query;
+
+  const setQuery = (query: string): void => {
+    state.query = query;
+    if (search.value !== query) search.value = query;
+    fill();
+    if (window.scrollY > 0) window.scrollTo({ top: 0 });
+  };
+  const fill = (): void => {
+    const searching = isSearching(state.query);
+    const categories = filterMenu(menu.categories, state.query);
+    chips.hidden = searching;
+    found.textContent = searching
+      ? categories.length ? `${plural(countDishes(categories), "dish", "dishes")} found` : "No dishes found"
+      : "";
+    if (menu.categories.length === 0) {
+      mount(main, h("p", { class: "empty", text: "The menu is being updated. Please ask your waiter." }));
+    } else if (categories.length === 0) {
+      mount(main, h("div", { class: "empty" },
+        h("p", { text: `No dishes match “${state.query.trim()}”.` }),
+        h("button", { class: "ghost", text: "Show the whole menu", on: { click: () => setQuery("") } }),
+      ));
+    } else {
+      mount(main, ...categories.map((category) =>
+        h("section", { class: "category", attrs: { id: `cat-${category.id}`, "aria-labelledby": `h-${category.id}` } },
+          h("h2", { attrs: { id: `h-${category.id}` }, text: category.name }),
+          category.description && !searching ? h("p", { class: "category-desc", text: category.description }) : null,
+          h("ul", { class: "items" }, ...category.items.map((item) => itemCard(item, groups))),
+        ),
+      ));
+    }
+  };
+
   cartBar = h("button", { class: "cartbar", on: { click: () => openCart() } });
   mount(root,
     topBar(),
-    chips,
-    h("main", { class: "menu" },
-      ...(sections.length
-        ? sections
-        : [h("p", { class: "empty", text: "The menu is being updated. Please ask your waiter." })]),
+    h("div", { class: "finder" },
+      menu.categories.length ? h("div", { class: "search" }, search) : null,
+      chips,
     ),
+    main,
+    found,
     cartBar,
     toastRegion,
   );
+  fill();
+  if (typing) search.focus();
   updateCartBar();
 }
 

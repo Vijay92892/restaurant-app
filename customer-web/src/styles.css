@@ -255,16 +255,39 @@ button:disabled {
   font-size: 0.9rem;
 }
 
-.cats {
+/* Search box and section chips stay under the top bar while the menu scrolls. */
+.finder {
   position: sticky;
   top: 61px;
   z-index: 4;
+  background: var(--bg);
+}
+
+.search {
+  padding: 10px 16px 0;
+  max-width: 44rem;
+  margin: 0 auto;
+}
+
+.search input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.cats {
   display: flex;
   gap: 8px;
   overflow-x: auto;
   padding: 10px 16px;
-  background: var(--bg);
   scrollbar-width: none;
+}
+
+.cats[hidden] {
+  display: none;
 }
 
 .chip {
@@ -284,7 +307,7 @@ button:disabled {
 }
 
 .category {
-  scroll-margin-top: 120px;
+  scroll-margin-top: 175px;
 }
 
 .category h2 {
@@ -401,6 +424,20 @@ button:disabled {
   text-align: center;
   padding: 32px 0;
   list-style: none;
+}
+
+.empty .ghost {
+  color: var(--text);
+}
+
+/* Read by screen readers only (e.g. how many dishes a search found). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Indian food-type marks: square with a dot (veg) or triangle (non-veg); labelled for screen readers. */

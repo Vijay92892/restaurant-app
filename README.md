@@ -30,7 +30,7 @@ design.
 | 3 | Staff auth (Argon2id, JWT + rotating refresh tokens), RBAC, rate limiting, password reset | ✅ |
 | 4 | Restaurant registration, staff, tables & QR codes, table PIN & rotation, customer table sessions | ✅ |
 | 5 | Menu: categories, dishes, option groups, sold-out toggles, photos | ✅ |
-| 6 | Customer web: QR → PIN → menu → cart → order, order status, cancellation | ✅ |
+| 6 | Customer web: QR → PIN → menu (with search) → cart → order, order status, cancellation | ✅ |
 | 7 | Waiter app (Flutter) + staff order API, order state machine, cancellations | ✅ |
 | 8 | Kitchen screen (Flutter): live board, dishes summed across tables, delays; live updates (WebSocket) for all staff screens | ✅ |
 | 9 | Reliability: kitchen board saved on the device, offline rules, alerts, data retention | ✅ |

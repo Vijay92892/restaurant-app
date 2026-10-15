@@ -325,6 +325,15 @@ One entry per shipped feature, in the format required by the spec (§50). A feat
   dish name renders as text with no script execution, a photographed QR alone gets `401`,
   first screen in < 2.5 s on emulated weak 4G (measured ≈ 0.8 s locally).
 
+### Customer menu search — `customer-web/src/search.ts` (added after go-live)
+- **Surface:** none new. It filters the menu the page already holds; no request, no new
+  endpoint, nothing stored. The query never leaves the phone.
+- **Rendering:** results and the "No dishes match …" line go through the same text-only DOM
+  helper, so a typed query or a dish name is never markup. Input capped at 60 characters.
+- **Tests:** unit (`tests/search.test.ts`, 7: spelling, every word, sections, empty and
+  punctuation-only queries, the menu left unchanged) and a browser test in Chrome, WebKit and
+  Firefox (search, add from the results, no match, back to the whole menu).
+
 ---
 
 ## Phase 7 — Staff order API and waiter app
