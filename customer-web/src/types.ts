@@ -8,6 +8,10 @@ export interface Landing {
   table_label: string;
   pin_length: number;
   has_session: boolean;
+  /** A built-in theme of this page ("heritage"), or null for the default look. */
+  theme: string | null;
+  /** A short line under the restaurant's name, once the restaurant approved it. */
+  tagline: string | null;
 }
 
 export interface SessionInfo {

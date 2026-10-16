@@ -49,3 +49,5 @@ local-test-qr-cards.html
 onboarding/*/setup.final.json
 onboarding/*/private/
 *-cards.html
+# Before/after screenshots of the customer page redesign (local review only)
+redesign-screens/

@@ -30,6 +30,12 @@ const ORDERS_POLL_MS = 10_000;
 const MENU_POLL_MS = 60_000;
 const ACTIVE: ReadonlySet<string> = new Set(["placed", "accepted", "preparing", "ready"]);
 
+// Built-in themes (styles.css, [data-theme=…]) and the browser bar colour each one uses.
+// Anything else from the server is ignored: the page keeps its default look.
+const THEMES: Readonly<Record<string, string>> = { heritage: "#9e2025" };
+const DEFAULT_THEME_COLOR = "#b4451a";
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 type View = "pin" | "menu" | "orders";
 
 interface State {
@@ -86,11 +92,23 @@ export async function start(element: HTMLElement): Promise<void> {
     query: "",
   };
   document.title = `${landing.restaurant_name} · Table ${landing.table_label}`;
+  applyTheme(landing.theme);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void refresh();
   });
   if (landing.has_session) await showMenu();
   else showPin();
+}
+
+function applyTheme(theme: string | null): void {
+  // (hasOwnProperty, not Object.hasOwn: older phone browsers lack the latter)
+  const known = theme !== null && Object.prototype.hasOwnProperty.call(THEMES, theme) ? theme : null;
+  const html = document.documentElement;
+  if (known) html.dataset.theme = known;
+  else delete html.dataset.theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", known ? (THEMES[known] ?? DEFAULT_THEME_COLOR) : DEFAULT_THEME_COLOR);
+  // Branded themes are light-only; the default look follows the phone's light/dark setting.
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", known ? "light" : "light dark");
 }
 
 function showMessage(text: string, retry?: () => void): void {
@@ -122,6 +140,7 @@ function toast(text: string): void {
 function saveCart(): void {
   storage.set(cartKey(), JSON.stringify(state.cart));
   updateCartBar();
+  updateCardCounts();
 }
 
 function sessionEnded(error: unknown): boolean {
@@ -163,17 +182,19 @@ async function refresh(): Promise<void> {
 function topBar(): HTMLElement {
   const active = state.orders.filter((o) => ACTIVE.has(o.status)).length;
   return h("header", { class: "topbar" },
-    h("div", { class: "where" },
-      h("strong", { text: state.landing.restaurant_name }),
-      h("span", { text: `Table ${state.landing.table_label}` }),
+    h("div", { class: "topbar-inner" },
+      h("div", { class: "where" },
+        h("strong", { text: state.landing.restaurant_name }),
+        h("span", { text: `Table ${state.landing.table_label}` }),
+      ),
+      state.view === "orders"
+        ? h("button", { class: "ghost", text: "← Menu", on: { click: () => void showMenu() } })
+        : h("button", {
+            class: "ghost",
+            attrs: { "aria-label": active ? `My orders, ${active} in progress` : "My orders" },
+            on: { click: () => void showOrders() },
+          }, "My orders", active ? h("span", { class: "badge", text: String(active) }) : null),
     ),
-    state.view === "orders"
-      ? h("button", { class: "ghost", text: "← Menu", on: { click: () => void showMenu() } })
-      : h("button", {
-          class: "ghost",
-          attrs: { "aria-label": active ? `My orders, ${active} in progress` : "My orders" },
-          on: { click: () => void showOrders() },
-        }, "My orders", active ? h("span", { class: "badge", text: String(active) }) : null),
   );
 }
 
@@ -237,6 +258,8 @@ function showPin(notice?: string): void {
   mount(root,
     h("main", { class: "pin-screen" },
       h("h1", { text: state.landing.restaurant_name }),
+      state.landing.tagline ? h("p", { class: "tagline", text: state.landing.tagline }) : null,
+      h("span", { class: "ornament", attrs: { "aria-hidden": "true" } }),
       h("p", { class: "table", text: `Table ${state.landing.table_label}` }),
       form,
     ),
@@ -292,8 +315,41 @@ function updateCartBar(): void {
   cartBar.hidden = count === 0 || state.view !== "menu";
   cartBar.replaceChildren(
     h("span", { text: `View order · ${plural(count, "item")}` }),
-    h("span", { attrs: { "aria-hidden": "true" }, text: "→" }),
+    h("span", { class: "icon icon-arrow", attrs: { "aria-hidden": "true" } }),
   );
+}
+
+/** Header and section-bar heights, for scrolling a section to just below them (also kept in
+ *  CSS variables for the sticky bar and scroll margins). */
+function stickyHeights(): [number, number] {
+  const header = root.querySelector<HTMLElement>(".topbar")?.offsetHeight ?? 0;
+  const cats = root.querySelector<HTMLElement>(".cats");
+  return [header, cats && !cats.hidden ? cats.offsetHeight : 0];
+}
+
+function measureSticky(): void {
+  const [header, bar] = stickyHeights();
+  const style = document.documentElement.style; // CSSOM, allowed by the page's CSP
+  style.setProperty("--header-h", `${header}px`);
+  style.setProperty("--cats-h", `${bar}px`);
+}
+
+const stickyHeight = (): number => stickyHeights().reduce((a, b) => a + b, 0);
+
+const inCartText = (count: number | undefined): string => (count ? `${count} in order` : "");
+
+function inCartCounts(): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const line of state.cart.lines) counts.set(line.itemId, (counts.get(line.itemId) ?? 0) + line.quantity);
+  return counts;
+}
+
+/** "2 in order" on each dish card, after the cart changes. */
+function updateCardCounts(): void {
+  const counts = inCartCounts();
+  for (const badge of root.querySelectorAll<HTMLElement>("[data-in-cart]")) {
+    badge.textContent = inCartText(counts.get(badge.dataset.inCart ?? ""));
+  }
 }
 
 function renderMenu(): void {
@@ -302,15 +358,39 @@ function renderMenu(): void {
   const groups = groupsById();
   // The menu re-renders when it changes on the server: keep the guest's typing and focus.
   const typing = document.activeElement?.id === "menu-search";
-  const chips = h("nav", { class: "cats", attrs: { "aria-label": "Menu sections" } },
-    ...menu.categories.map((category) =>
-      h("button", {
-        class: "chip",
-        text: category.name,
-        on: { click: () => document.getElementById(`cat-${category.id}`)?.scrollIntoView({ behavior: "smooth" }) },
-      }),
-    ),
-  );
+
+  // Section chips: the one for the section on screen is marked (aria-current) and kept in view.
+  const chipFor = new Map<string, HTMLButtonElement>();
+  const scroller = h("div", { class: "cats-scroll" });
+  for (const category of menu.categories) {
+    const chip = h("button", { class: "chip", text: category.name, on: { click: () => jumpTo(category.id) } });
+    chipFor.set(category.id, chip);
+    scroller.append(chip);
+  }
+  const chips = h("nav", { class: "cats", attrs: { "aria-label": "Menu sections" } }, scroller);
+  let active: string | null = null;
+  let quietUntil = 0; // while a chip's jump scrolls, the scroll position doesn't pick the chip
+  const setActive = (id: string): void => {
+    if (id === active) return;
+    if (active) chipFor.get(active)?.removeAttribute("aria-current");
+    active = id;
+    const chip = chipFor.get(id);
+    if (!chip) return;
+    chip.setAttribute("aria-current", "true");
+    const left = chip.offsetLeft - (scroller.clientWidth - chip.offsetWidth) / 2;
+    scroller.scrollTo({ left: Math.max(0, left), behavior: reducedMotion() ? "auto" : "smooth" });
+  };
+  const jumpTo = (id: string): void => {
+    const section = document.getElementById(`cat-${id}`);
+    if (!section) return;
+    setActive(id);
+    quietUntil = performance.now() + 900;
+    const top = section.getBoundingClientRect().top + window.scrollY - stickyHeight() - 4;
+    window.scrollTo({ top: Math.max(0, top), behavior: reducedMotion() ? "auto" : "smooth" });
+    // Keyboard and screen-reader users continue from the section they chose.
+    section.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
+  };
+
   const main = h("main", { class: "menu" });
   // Announced to screen readers; not a role="status" (that is the toast region).
   const found = h("p", { class: "sr-only", attrs: { id: "search-results", "aria-live": "polite", "aria-atomic": "true" } });
@@ -334,9 +414,20 @@ function renderMenu(): void {
     },
   });
   search.value = state.query;
+  const clear = h("button", {
+    class: "search-clear",
+    attrs: { type: "button", "aria-label": "Clear search", hidden: !state.query },
+    on: {
+      click: () => {
+        setQuery("");
+        search.focus();
+      },
+    },
+  }, h("span", { class: "icon icon-close", attrs: { "aria-hidden": "true" } }));
 
   const setQuery = (query: string): void => {
     state.query = query;
+    clear.hidden = !query;
     if (search.value !== query) search.value = query;
     fill();
     if (window.scrollY > 0) window.scrollTo({ top: 0 });
@@ -344,6 +435,7 @@ function renderMenu(): void {
   const fill = (): void => {
     const searching = isSearching(state.query);
     const categories = filterMenu(menu.categories, state.query);
+    const counts = inCartCounts();
     chips.hidden = searching;
     found.textContent = searching
       ? categories.length ? `${plural(countDishes(categories), "dish", "dishes")} found` : "No dishes found"
@@ -357,39 +449,85 @@ function renderMenu(): void {
       ));
     } else {
       mount(main, ...categories.map((category) =>
-        h("section", { class: "category", attrs: { id: `cat-${category.id}`, "aria-labelledby": `h-${category.id}` } },
-          h("h2", { attrs: { id: `h-${category.id}` }, text: category.name }),
+        h("section", { class: "category", attrs: { id: `cat-${category.id}`, "data-category": category.id, "aria-labelledby": `h-${category.id}` } },
+          h("h2", { attrs: { id: `h-${category.id}`, tabindex: -1 }, text: category.name }),
           category.description && !searching ? h("p", { class: "category-desc", text: category.description }) : null,
-          h("ul", { class: "items" }, ...category.items.map((item) => itemCard(item, groups))),
+          h("ul", { class: "items" }, ...category.items.map((item) => itemCard(item, groups, counts))),
         ),
       ));
     }
+    measureSticky();
+    spy();
   };
 
+  // Which section is on screen: the last one whose title has passed under the sticky bars.
+  const spy = (): void => {
+    if (isSearching(state.query) || performance.now() < quietUntil) return;
+    const sections = Array.from(main.querySelectorAll<HTMLElement>("section.category"));
+    if (!sections.length) return;
+    const line = stickyHeight() + 24;
+    // Scrolled to the very end: the last section, even if its title can't reach the bars. (Not
+    // before any scrolling: a short menu that fits on one screen starts at its first section.)
+    const atBottom =
+      window.scrollY > 0 && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+    let current = sections[0];
+    if (atBottom) current = sections[sections.length - 1];
+    else for (const section of sections) {
+      if (section.getBoundingClientRect().top - line > 0) break;
+      current = section;
+    }
+    if (current?.dataset.category) setActive(current.dataset.category);
+  };
+  let frame = 0;
+  const onScroll = (): void => {
+    if (!main.isConnected) {
+      window.removeEventListener("scroll", onScroll); // the guest left the menu
+      return;
+    }
+    if (!frame) frame = window.requestAnimationFrame(() => {
+      frame = 0;
+      spy();
+    });
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+
   cartBar = h("button", { class: "cartbar", on: { click: () => openCart() } });
+  const header = topBar();
   mount(root,
-    topBar(),
-    h("div", { class: "finder" },
-      menu.categories.length ? h("div", { class: "search" }, search) : null,
-      chips,
+    header,
+    h("div", { class: "intro" },
+      state.landing.tagline ? h("p", { class: "tagline", text: state.landing.tagline }) : null,
+      menu.categories.length
+        ? h("div", { class: "search" }, h("span", { class: "icon icon-search", attrs: { "aria-hidden": "true" } }), search, clear)
+        : null,
     ),
+    chips,
     main,
     found,
     cartBar,
     toastRegion,
   );
   fill();
+  if (typeof ResizeObserver !== "undefined") {
+    // Fonts arriving or the phone rotating change the bars' height.
+    const observer = new ResizeObserver(() => {
+      if (!main.isConnected) observer.disconnect();
+      else measureSticky();
+    });
+    observer.observe(header);
+    observer.observe(chips);
+  }
   if (typing) search.focus();
   updateCartBar();
 }
 
-function itemCard(item: MenuItem, groups: Map<string, MenuGroup>): HTMLElement {
+function itemCard(item: MenuItem, groups: Map<string, MenuGroup>, counts: Map<string, number>): HTMLElement {
   const hasOptions = item.modifier_group_ids.some((id) => groups.has(id));
   const status = !item.is_available ? "Sold out" : !item.orderable ? "Unavailable" : null;
-  const add = status
+  const action = status
     ? h("span", { class: "soldout", text: status })
     : h("button", {
-        class: "add",
+        class: hasOptions ? "add choose" : "add",
         attrs: { "aria-label": `Add ${item.name}` },
         text: hasOptions ? "Choose" : "Add",
         on: {
@@ -400,21 +538,23 @@ function itemCard(item: MenuItem, groups: Map<string, MenuGroup>): HTMLElement {
           },
         },
       });
-  return h("li", { class: `item${status ? " disabled" : ""}` },
-    h("button", {
-      class: "item-main",
-      attrs: { "aria-label": `${item.name}${status ? `, ${status}` : ""}`, disabled: !!status },
-      on: { click: () => openItem(item) },
-    },
+  return h("li", { class: `card${status ? " off" : ""}` },
+    // The whole card opens the dish (options, quantity, a note for the kitchen); its name for
+    // screen readers is its text: food-type mark, name and description.
+    h("button", { class: "card-main", attrs: { disabled: !!status }, on: { click: () => openItem(item) } },
       h("span", { class: "item-title" }, dietMark(item), h("span", { class: "name", text: item.name })),
       item.description ? h("span", { class: "desc", text: item.description }) : null,
-      item.display_price_paise !== null ? h("span", { class: "price", text: formatPrice(item.display_price_paise) }) : null,
     ),
-    h("div", { class: "item-side" },
+    h("div", { class: "card-foot" },
+      item.display_price_paise !== null ? h("span", { class: "price", text: formatPrice(item.display_price_paise) }) : null,
+      h("span", { class: "in-cart", attrs: { "data-in-cart": item.id }, text: inCartText(counts.get(item.id)) }),
+    ),
+    // Photo (only an approved one, lazy-loaded at a fixed size: no layout shift) and the action.
+    h("div", { class: "card-side" },
       item.thumbnail_url
-        ? h("img", { attrs: { src: item.thumbnail_url, alt: "", loading: "lazy", decoding: "async", width: 88, height: 88 } })
+        ? h("img", { class: "card-img", attrs: { src: item.thumbnail_url, alt: "", loading: "lazy", decoding: "async", width: 88, height: 88 } })
         : null,
-      add,
+      action,
     ),
   );
 }
@@ -434,10 +574,10 @@ function quickAdd(item: MenuItem): void {
 
 // --- dish sheet ----------------------------------------------------------------------------------
 
-function sheet(title: string, ...content: Child[]): HTMLDialogElement {
+function sheet(title: string, subtitle: string | null, ...content: Child[]): HTMLDialogElement {
   const dialog = h("dialog", { class: "sheet", attrs: { "aria-label": title } },
     h("div", { class: "sheet-head" },
-      h("h2", { text: title }),
+      h("h2", {}, title, subtitle !== null ? h("span", { class: "sheet-sub", text: subtitle }) : null),
       h("button", { class: "close", attrs: { "aria-label": "Close" }, text: "✕", on: { click: () => dialog.close() } }),
     ),
     ...content,
@@ -530,7 +670,7 @@ function openItem(item: MenuItem): void {
     toast(quantity === 1 ? `Added ${item.name}` : `Added ${quantity} × ${item.name}`);
   });
 
-  const dialog = sheet(item.name,
+  const dialog = sheet(item.name, null,
     item.image_url ? h("img", { class: "hero", attrs: { src: item.image_url, alt: "", decoding: "async" } }) : null,
     h("div", { class: "sheet-body" },
       h("p", { class: "item-title" }, dietMark(item), item.display_price_paise !== null ? h("span", { class: "price", text: formatPrice(item.display_price_paise) }) : null),
@@ -564,20 +704,23 @@ function openCart(): void {
   });
   const place = h("button", { class: "primary wide", text: "Place order" });
 
+  const summary = () => `${plural(totalQuantity(state.cart), "item")} · Table ${state.landing.table_label}`;
   const renderLines = () => {
     if (!state.cart.lines.length) {
       dialog.close();
       return;
     }
     mount(list, ...state.cart.lines.map((line) => cartLine(line, renderLines)));
+    const sub = dialog.querySelector(".sheet-sub");
+    if (sub) sub.textContent = summary();
   };
 
   place.addEventListener("click", () => void placeOrder(place, message, () => dialog.close()));
-  const dialog = sheet("Your order",
+  const dialog = sheet("Your order", summary(),
     h("div", { class: "sheet-body" },
       list,
       h("label", { class: "field" }, h("span", { text: "Note for the whole order (optional)" }), notes),
-      h("p", { class: "fine", text: "Your order goes straight to the kitchen. Please pay at the counter as usual." }),
+      h("p", { class: "cart-info", text: "No payment here: your order goes straight to the kitchen. Please pay at the counter as usual." }),
       message,
     ),
     h("div", { class: "sheet-foot" }, place),
@@ -598,7 +741,10 @@ function cartLine(line: CartLine, rerender: () => void): HTMLElement {
       line.notes ? h("span", { class: "note", text: `“${line.notes}”` }) : null,
     ),
     h("div", { class: "stepper small" },
-      h("button", { attrs: { "aria-label": `One less ${line.name}` }, text: line.quantity === 1 ? "🗑" : "−", on: { click: () => change(line.quantity - 1) } }),
+      line.quantity === 1
+        ? h("button", { attrs: { "aria-label": `Remove ${line.name}` }, on: { click: () => change(0) } },
+            h("span", { class: "icon icon-trash", attrs: { "aria-hidden": "true" } }))
+        : h("button", { attrs: { "aria-label": `One less ${line.name}` }, text: "−", on: { click: () => change(line.quantity - 1) } }),
       h("output", { text: String(line.quantity) }),
       h("button", { attrs: { "aria-label": `One more ${line.name}` }, text: "+", on: { click: () => change(line.quantity + 1) } }),
     ),

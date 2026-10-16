@@ -19,6 +19,9 @@ class TableLandingResponse(ResponseModel):
     table_label: str
     pin_length: int
     has_session: bool
+    # Branding, public like the name: a built-in theme of the ordering page and a tagline.
+    theme: str | None = None
+    tagline: str | None = None
 
 
 class CustomerSessionResponse(ResponseModel):

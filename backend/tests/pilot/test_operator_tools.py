@@ -26,7 +26,7 @@ from app.services import (
     usage_service,
 )
 from app.services.setup_service import SetupFile
-from tests.conftest import Seeder, login, login_ok, staff_headers
+from tests.conftest import Seeder, create_table, login, login_ok, staff_headers
 from tests.test_realtime import ORDERS, place
 
 SETUP = {
@@ -326,3 +326,47 @@ async def test_operator_reset_lets_a_locked_out_owner_back_in(
         "SELECT actor_type, actor_user_id FROM audit_logs WHERE action = 'staff.password_reset'"
     )
     assert audit["actor_type"] == "system" and audit["actor_user_id"] is None
+
+
+async def test_branding_from_the_setup_file_reaches_the_guest_page(
+    app: object, client: httpx.AsyncClient, seed: Seeder, settings: Settings, tmp_path: Path
+) -> None:
+    await seed.restaurant("alpha")
+    await seed.restaurant("beta")
+    owner = await staff_headers(client, "alpha", "owner")
+    table = await create_table(client, owner, "T1")
+    landing = f"/api/v1/public/tables/{table['qr_token']}"
+    before = (await client.get(landing)).json()
+    assert before["theme"] is None and before["tagline"] is None  # the default look
+
+    branded = {"branding": {"theme": "heritage", "tagline": "Since 1995"}}
+    dry = await run_setup(app, settings, "alpha", branded, dry_run=True)
+    assert dry.updated == ["branding tagline: Since 1995", "branding theme: heritage"]
+    assert (await client.get(landing)).json()["theme"] is None  # dry: nothing
+
+    await run_setup(app, settings, "alpha", branded)
+    after = (await client.get(landing)).json()
+    assert (after["theme"], after["tagline"]) == ("heritage", "Since 1995")
+    again = await run_setup(app, settings, "alpha", branded)
+    assert again.updated == [] and again.unchanged == 2
+
+    # Only what is given changes; null goes back to the default.
+    await run_setup(app, settings, "alpha", {"branding": {"tagline": None}})
+    after = (await client.get(landing)).json()
+    assert (after["theme"], after["tagline"]) == ("heritage", None)
+
+    # Another restaurant keeps its own look.
+    beta_owner = await staff_headers(client, "beta", "owner")
+    beta_table = await create_table(client, beta_owner, "T1")
+    beta_landing = f"/api/v1/public/tables/{beta_table['qr_token']}"
+    assert (await client.get(beta_landing)).json()["theme"] is None
+
+    # Unknown themes, unknown keys and overlong or multi-line taglines are refused before
+    # anything changes.
+    two_lines = "Hi" + chr(10) + "there"
+    refused = ({"theme": "neon"}, {"tagline": "x" * 81}, {"tagline": two_lines}, {"colour": "red"})
+    for bad in refused:
+        path = tmp_path / "bad.json"
+        path.write_text(json.dumps({"branding": bad}), encoding="utf-8")
+        with pytest.raises(OperatorError):
+            load_setup(path)

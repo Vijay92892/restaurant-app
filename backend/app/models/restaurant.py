@@ -25,5 +25,8 @@ class Restaurant(Base):
     )
     kitchen_delay_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=15)
     order_seq: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    # Customer ordering page branding (migration 0006): a built-in theme and a short tagline.
+    theme: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tagline: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = col_created_at()
     updated_at: Mapped[datetime] = col_updated_at()

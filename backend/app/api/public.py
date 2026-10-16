@@ -77,6 +77,8 @@ async def table_landing(
         table_label=ctx.table.label,
         pin_length=ctx.restaurant.pin_length,
         has_session=has_session,
+        theme=ctx.restaurant.theme,
+        tagline=ctx.restaurant.tagline,
     )
 
 

@@ -103,7 +103,7 @@ Prices (`display_price_paise`, `display_price_delta_paise`) are **informational 
 
 | | | |
 |---|---|---|
-| `GET /public/tables/{qr_token}` | 🔓 | → `{restaurant_name, table_label, pin_length, has_session}`; invalid token ⇒ `404 not_found` |
+| `GET /public/tables/{qr_token}` | 🔓 | → `{restaurant_name, table_label, pin_length, has_session, theme, tagline}` (`theme`: a built-in look of the ordering page such as `heritage`, or null; `tagline`: approved text or null); invalid token ⇒ `404 not_found` |
 | `POST /public/tables/{qr_token}/session` | 🔓 PIN rate limits | `{pin}` → `200 {table_label, expires_at}` + `Set-Cookie: __Host-ts=…`; any failure ⇒ `401 invalid_table_access` |
 | `GET /public/session` | 🍽 | → `{restaurant_name, table_label, expires_at}` |
 | `DELETE /public/session` | 🍽 | leave table → `204` |

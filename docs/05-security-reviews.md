@@ -334,6 +334,26 @@ One entry per shipped feature, in the format required by the spec (§50). A feat
   punctuation-only queries, the menu left unchanged) and a browser test in Chrome, WebKit and
   Firefox (search, add from the results, no match, back to the whole menu).
 
+### Customer page redesign and restaurant themes — `restaurants.theme/tagline` (migration 0006)
+- **Surface:** no new endpoint. The public table landing response gains `theme` and `tagline`,
+  public like the restaurant's name (shown before the PIN). Set only through the operator's
+  setup file (`branding`); every change is in the audit log (`restaurant.settings_changed`).
+- **Inputs:** `theme` is one of the page's built-in names (setup validation; the database also
+  checks its shape) and the page ignores any name it doesn't know. The server never sends
+  colours, CSS or URLs: a theme only switches tokens already in the stylesheet. `tagline` is
+  single-line plain text (control and invisible characters refused, ≤ 80), rendered as text.
+- **CSP unchanged:** the heading font is served from the page's own origin (`font-src
+  'self'`); icons and motifs are tiny SVG shapes inside the stylesheet (`data:`, already
+  allowed); sticky-bar heights are written through the CSSOM, which the CSP permits.
+- **Unchanged guarantees:** prices remain menu information (the order sheet shows no prices or
+  totals; test), the server still decides availability, options and the order; sold-out
+  dishes cannot be added on the page and are refused by the server (test).
+- **Tests:** backend `test_branding_from_the_setup_file_reaches_the_guest_page` (dry run, apply,
+  re-run, partial change, other restaurant untouched, unknown theme / key, overlong or
+  multi-line tagline refused) and the landing contract; browser tests in Chrome, WebKit and
+  Firefox for the section chips, sold-out refusal, order-sheet quantities and removal, and a
+  theme applied to one restaurant only.
+
 ---
 
 ## Phase 7 — Staff order API and waiter app

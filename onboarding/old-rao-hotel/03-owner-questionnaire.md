@@ -26,7 +26,8 @@ Filled in by: ____________________   Date: ____________   Signed for the restaur
 | B1. Name guests should see on the ordering page and QR cards (exact spelling) | |
 | B2. May we show the Old Rao Hotel **name** on the ordering page and QR cards? | ☐ yes ☐ no |
 | B3. May we show the Old Rao Hotel **logo**? If yes, who sends us the logo file? | ☐ yes ☐ no · from: ____________ |
-| B4. Brand colour, if the restaurant has one | |
+| B4. Brand colour, if the restaurant has one (the demo uses a red, gold and cream look inspired by the website) | ☐ the demo look is fine ☐ other: ____ |
+| B4a. A short line under the name (tagline), e.g. from the website, or none | |
 | B5. May we print and place QR cards on the tables? | ☐ yes ☐ no |
 | B6. May we show dish photos? Only photos the restaurant sends us | ☐ yes ☐ no ☐ not now |
 

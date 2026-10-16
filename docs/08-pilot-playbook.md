@@ -181,6 +181,7 @@ or renamed**, and sold-out switches are left to the kitchen. Run it with `--dry-
 
 ```json
 {
+  "branding": { "theme": "heritage", "tagline": null },
   "tables": ["T1", "T2", "Family 1"],
   "staff": [
     { "username": "ravi", "name": "Ravi", "role": "waiter" }
@@ -202,6 +203,7 @@ or renamed**, and sold-out switches are left to the kitchen. Run it with `--dry-
 
 | Field | Meaning |
 |---|---|
+| `branding` | Optional. `theme`: a built-in look of the ordering page (`heritage`: deep red, gold and cream; `null`: the default). `tagline`: one line under the name, up to 80 characters, `null` to remove. Only the keys given change. Use them only with the restaurant's approval. |
 | `tables` | Labels, up to 20 characters, in display order. |
 | `staff[].role` | `waiter`, `kitchen` or `admin` (manager). New people get a temporary password, printed once. Existing accounts are never changed from the file. |
 | `option_groups[]` | `min`/`max`: how many options a guest must/may pick (`1`/`1` = choose one). An option is a name, or `{ "name", "price" }` where `price` is the extra in rupees. |

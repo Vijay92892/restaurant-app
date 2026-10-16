@@ -1,4 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import { type APIRequestContext, expect, test } from "@playwright/test";
 
@@ -8,6 +11,7 @@ interface Fixture {
   name: string;
   qr: string;
   pin: string;
+  soldOut: string; // id of a dish the kitchen marked sold out
 }
 
 let fx: Fixture;
@@ -32,7 +36,7 @@ async function newRestaurant(playwright: import("@playwright/test").PlaywrightWo
   const login = await (
     await api.post("/api/v1/auth/login", { data: { restaurant_code: code, username: "owner", password: OWNER_PASSWORD } })
   ).json();
-  return { api, headers: { Authorization: `Bearer ${login.access_token}` } };
+  return { api, code, headers: { Authorization: `Bearer ${login.access_token}` } };
 }
 
 test.beforeAll(async ({ playwright }) => {
@@ -47,6 +51,9 @@ test.beforeAll(async ({ playwright }) => {
   });
   await created(api, headers, "/menu/items", { category_id: breads.id, name: "Butter Naan", dietary: "veg", display_price_paise: 6000 });
   await created(api, headers, "/menu/items", { category_id: breads.id, name: XSS_NAME });
+  const roti = await created(api, headers, "/menu/items", { category_id: breads.id, name: "Missi Roti", dietary: "veg", display_price_paise: 4000 });
+  const soldOut = await api.patch(`/api/v1/menu/items/${roti.id}/availability`, { headers, data: { is_available: false } });
+  expect(soldOut.status()).toBe(200);
   const spice = await created(api, headers, "/menu/modifier-groups", { name: "Spice level", min_select: 1, max_select: 1 });
   for (const option of ["Regular", "Spicy", "Extra Spicy"]) {
     await created(api, headers, `/menu/modifier-groups/${spice.id}/modifiers`, { name: option });
@@ -55,7 +62,7 @@ test.beforeAll(async ({ playwright }) => {
   expect(linked.status()).toBe(200);
   const table = await created(api, headers, "/tables", { label: "T7" });
   const pin = (await (await api.get("/api/v1/pin", { headers })).json()).pin as string;
-  fx = { name, qr: table.qr_url.split("/").pop(), pin };
+  fx = { name, qr: table.qr_url.split("/").pop(), pin, soldOut: roti.id };
   await api.dispose();
 });
 
@@ -148,6 +155,70 @@ test("diners can search the menu and order from the results", async ({ page }) =
   await expect(search).toHaveValue("");
   await expect(page.getByRole("heading", { name: "Starters" })).toBeVisible();
   await expect(sections).toBeVisible();
+});
+
+test("section chips follow the menu and jump to a section", async ({ page }) => {
+  await seat(page);
+  const nav = page.getByRole("navigation", { name: "Menu sections" });
+  await expect(nav.getByRole("button", { name: "Starters" })).toHaveAttribute("aria-current", "true");
+  await nav.getByRole("button", { name: "Breads" }).click();
+  await expect(nav.getByRole("button", { name: "Breads" })).toHaveAttribute("aria-current", "true");
+  await expect(nav.getByRole("button", { name: "Starters" })).not.toHaveAttribute("aria-current", /.*/);
+  const breads = page.getByRole("heading", { name: "Breads" });
+  await expect(breads).toBeInViewport();
+  await expect(breads).toBeFocused(); // keyboard and screen-reader users continue from there
+});
+
+test("sold-out dishes cannot be ordered, on the page or behind it", async ({ page }) => {
+  await seat(page);
+  const card = page.locator(".card", { hasText: "Missi Roti" });
+  await expect(card.getByText("Sold out")).toBeVisible();
+  await expect(card.getByRole("button", { name: "Add Missi Roti" })).toHaveCount(0);
+  await expect(card.locator(".card-main")).toBeDisabled();
+  // The server refuses it anyway (the page never decides what can be ordered).
+  const attempt = await page.request.post("/api/v1/public/orders", {
+    headers: { "Idempotency-Key": "sold-out-attempt-0001", Origin: new URL(page.url()).origin },
+    data: { items: [{ menu_item_id: fx.soldOut, quantity: 1, modifier_ids: [] }] },
+  });
+  expect(attempt.status()).toBe(409);
+});
+
+test("the order sheet changes quantities and removes dishes", async ({ page }) => {
+  await seat(page);
+  const add = page.getByRole("button", { name: "Add Butter Naan" });
+  await add.click();
+  await add.click();
+  await expect(page.locator(".card", { hasText: "Butter Naan" }).getByText("2 in order")).toBeVisible();
+  await page.getByRole("button", { name: /View order · 2 items/ }).click();
+  const cart = page.getByRole("dialog", { name: "Your order" });
+  await expect(cart.getByText("2 items · Table T7")).toBeVisible();
+  await cart.getByRole("button", { name: "One less Butter Naan" }).click();
+  await expect(cart.getByText("1 item · Table T7")).toBeVisible();
+  await cart.getByRole("button", { name: "Remove Butter Naan" }).click();
+  await expect(cart).toBeHidden(); // empty: the sheet closes
+  await expect(page.getByRole("button", { name: /View order/ })).toBeHidden();
+  await expect(page.locator(".card", { hasText: "Butter Naan" }).locator(".in-cart")).toBeEmpty();
+});
+
+test("a restaurant's own theme and tagline dress the page; others keep the default", async ({ page, playwright }) => {
+  const { api, code, headers } = await newRestaurant(playwright, "Heritage Dhaba");
+  const file = path.join(os.tmpdir(), `branding-${code}.json`);
+  writeFileSync(file, JSON.stringify({ branding: { theme: "heritage", tagline: "Since 1995" }, tables: ["T1"] }));
+  execFileSync(PYTHON, ["-m", "app.cli", "apply-setup", "--code", code, "--file", file], { cwd: BACKEND_DIR, env: BACKEND_ENV });
+  const [table] = await (await api.get("/api/v1/tables", { headers })).json();
+  await api.dispose();
+
+  await page.goto(`/t/${table.qr_url.split("/").pop()}`);
+  await expect(page.getByRole("heading", { name: "Heritage Dhaba" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "heritage");
+  await expect(page.getByText("Since 1995")).toBeVisible();
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#9e2025");
+  const brand = await page.getByRole("heading", { name: "Heritage Dhaba" }).evaluate((el) => getComputedStyle(el).color);
+  expect(brand).toBe("rgb(158, 32, 37)"); // heritage red
+
+  await page.goto(`/t/${fx.qr}`);
+  await expect(page.getByRole("heading", { name: fx.name })).toBeVisible();
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.*/);
 });
 
 test("dish names are shown as text, never run as code", async ({ page }) => {

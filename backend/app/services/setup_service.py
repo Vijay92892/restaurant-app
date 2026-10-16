@@ -26,7 +26,7 @@ from app.core.config import Settings
 from app.core.errors import InvalidInput
 from app.core.net import RequestMeta
 from app.core.security import validate_new_password
-from app.schemas.common import DisplayName, RequestModel, TableLabel, Username
+from app.schemas.common import DisplayName, RequestModel, TableLabel, Username, plain_text
 from app.schemas.menu import (
     CategoryDescription,
     CategoryName,
@@ -37,7 +37,7 @@ from app.schemas.menu import (
     OptionName,
     SelectCount,
 )
-from app.services import menu_service, staff_service, table_service
+from app.services import menu_service, restaurant_service, staff_service, table_service
 from app.services.auth_service import StaffContext
 
 META = RequestMeta(ip="127.0.0.1", user_agent="app.cli apply-setup", request_id="cli-apply-setup")
@@ -106,7 +106,19 @@ class SetupStaff(RequestModel):
     role: Literal["admin", "waiter", "kitchen"]
 
 
+# The ordering page's built-in themes (customer-web/src/styles.css, [data-theme=...]).
+Theme = Literal["heritage"]
+Tagline = plain_text(1, 80)
+
+
+class SetupBranding(RequestModel):
+    # Only what is given changes; null switches back to the default look / removes the tagline.
+    theme: Theme | None = None
+    tagline: Tagline | None = None  # type: ignore[valid-type]
+
+
 class SetupFile(RequestModel):
+    branding: SetupBranding | None = None
     tables: Annotated[list[TableLabel], Field(max_length=5000)] = []  # type: ignore[valid-type]
     staff: Annotated[list[SetupStaff], Field(max_length=500)] = []
     option_groups: Annotated[list[SetupGroup], Field(max_length=menu_service.MAX_GROUPS)] = []
@@ -178,11 +190,26 @@ async def apply(
                         f"{dish.name}: option group {name!r} is not defined in option_groups."
                     )
 
+    await _branding(db, ctx, setup, result, dry_run)
     await _tables(db, ctx, settings, setup, result, dry_run)
     await _staff(db, ctx, setup, result, dry_run)
     groups = await _groups(db, ctx, menu, setup, result, dry_run)
     await _menu(db, ctx, menu, groups, setup, result, dry_run)
     return result
+
+
+async def _branding(
+    db: AsyncSession, ctx: StaffContext, setup: SetupFile, result: SetupResult, dry_run: bool
+) -> None:
+    if setup.branding is None:
+        return
+    wanted = {name: getattr(setup.branding, name) for name in setup.branding.model_fields_set}
+    changes = {k: v for k, v in wanted.items() if getattr(ctx.restaurant, k) != v}
+    result.unchanged += len(wanted) - len(changes)
+    for name in sorted(changes):
+        result.updated.append(f"branding {name}: {changes[name] or '(default)'}")
+    if changes and not dry_run:
+        await restaurant_service.update_settings(db, ctx, META, changes)
 
 
 async def _tables(

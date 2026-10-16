@@ -38,6 +38,9 @@ docker compose exec -T api python -m app.cli qr-sheet --code oldrao-demo > ~/old
 exit
 ```
 - The first `apply-setup` lists the 191 things it created (menu).
+- `demo-extras.json` also switches on the red, gold and cream look (`"branding": {"theme":
+  "heritage"}`). For a demo created before that, run the same `demo-extras.json` command
+  again: it only changes the look (tables and staff already exist).
 - The second prints **temporary passwords** for `manager`, `waiter` and `kitchen`, and
   `reset-password` prints one for `owner`. Write them down on paper (never in chat).
 
