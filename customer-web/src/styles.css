@@ -363,6 +363,56 @@ h2,
   border-top: 3px solid var(--accent);
 }
 
+/* Location check (where the restaurant turned it on): same card as the PIN form. */
+.locate {
+  display: grid;
+  gap: 10px;
+  background: var(--surface);
+  padding: 22px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+[data-theme="heritage"] .locate {
+  border-top: 3px solid var(--accent);
+}
+
+.locate h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+[data-theme="heritage"] .locate h2 {
+  color: var(--brand);
+  font-size: 1.5rem;
+}
+
+.or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.or::before,
+.or::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+
+.notice {
+  margin: 0 0 14px;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+
 .pin-form label {
   font-weight: 700;
   font-size: 1.15rem;

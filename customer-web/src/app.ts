@@ -21,6 +21,7 @@ import {
 import { type Child, h, mount } from "./dom.ts";
 import { DIETARY_LABEL, STATUS, formatDelta, formatPrice, formatTime, plural, retryText } from "./format.ts";
 import { defaultSelection, groupError, groupRule, toggleOption } from "./options.ts";
+import { currentPosition, isPositionError, locationSupported, positionErrorText, refusalText } from "./location.ts";
 import { countDishes, filterMenu, isSearching } from "./search.ts";
 import { newIdempotencyKey, storage } from "./storage.ts";
 import type { Landing, MenuGroup, MenuItem, Order, PublicMenu } from "./types.ts";
@@ -200,8 +201,29 @@ function topBar(): HTMLElement {
 
 // --- PIN -----------------------------------------------------------------------------------------
 
+/** The way in: the table PIN, and/or a location check where the restaurant turned it on. */
 function showPin(notice?: string): void {
   state.view = "pin";
+  const { pin_enabled: pinOn, location_enabled: locationOn } = state.landing;
+  const pin = pinOn ? pinForm(locationOn ? null : notice) : null;
+  const locate = locationOn ? locationCard(pinOn, pinOn ? null : notice, pin?.input ?? null) : null;
+  mount(root,
+    h("main", { class: "pin-screen" },
+      h("h1", { text: state.landing.restaurant_name }),
+      state.landing.tagline ? h("p", { class: "tagline", text: state.landing.tagline }) : null,
+      h("span", { class: "ornament", attrs: { "aria-hidden": "true" } }),
+      h("p", { class: "table", text: `Table ${state.landing.table_label}` }),
+      locationOn && notice && pinOn ? h("p", { class: "notice", text: notice }) : null,
+      locate,
+      locate && pin ? h("p", { class: "or", attrs: { "aria-hidden": "true" }, text: "or" }) : null,
+      pin?.form ?? null,
+    ),
+    toastRegion,
+  );
+  if (pin && !locate) pin.input.focus(); // the location button is never pressed for the guest
+}
+
+function pinForm(notice: string | null | undefined): { form: HTMLFormElement; input: HTMLInputElement } {
   const { pin_length: length } = state.landing;
   const error = h("p", { class: "error", attrs: { role: "alert" }, text: notice ?? "" });
   const input = h("input", {
@@ -255,17 +277,58 @@ function showPin(notice?: string): void {
     event.preventDefault();
     void send();
   });
-  mount(root,
-    h("main", { class: "pin-screen" },
-      h("h1", { text: state.landing.restaurant_name }),
-      state.landing.tagline ? h("p", { class: "tagline", text: state.landing.tagline }) : null,
-      h("span", { class: "ornament", attrs: { "aria-hidden": "true" } }),
-      h("p", { class: "table", text: `Table ${state.landing.table_label}` }),
-      form,
-    ),
-    toastRegion,
+  return { form, input };
+}
+
+/** Ordering without the PIN: one fresh position, only when the guest taps the button. */
+function locationCard(pinOn: boolean, notice: string | null | undefined, pinInput: HTMLInputElement | null): HTMLElement {
+  const radius = state.landing.location_radius_m ?? 100;
+  const fallback = pinOn ? " You can use the table PIN instead." : " Please ask a member of staff to take your order.";
+  // Announced, but not role="alert": the PIN form below has its own.
+  const message = h("p", { class: "error", attrs: { "aria-live": "polite" }, text: notice ?? "" });
+  const supported = locationSupported();
+  const button = h("button", { class: "primary wide", attrs: { type: "button" }, text: "Use my location" });
+  let busy = false;
+  button.addEventListener("click", async () => {
+    if (busy) return;
+    busy = true;
+    button.disabled = true;
+    button.textContent = "Finding your location…";
+    message.textContent = "";
+    try {
+      const report = await currentPosition();
+      button.textContent = "Checking…";
+      await api.openLocationSession(state.token, report);
+      await showMenu();
+      return;
+    } catch (failure) {
+      let text: string;
+      if (failure instanceof ApiError) {
+        text = failure.status === 429 ? `Too many attempts. ${retryText(failure.retryAfter)}` : refusalText(failure.code, failure.message);
+      } else if (isPositionError(failure)) {
+        text = positionErrorText(failure.code);
+      } else {
+        text = errorText(failure);
+      }
+      message.textContent = text + fallback;
+      pinInput?.focus({ preventScroll: true });
+    } finally {
+      busy = false;
+      button.disabled = false;
+      button.textContent = "Use my location";
+    }
+  });
+  return h("section", { class: "locate", attrs: { "aria-labelledby": "locate-title" } },
+    h("h2", { attrs: { id: "locate-title" }, text: "Order without a PIN" }),
+    h("p", {
+      class: "help",
+      text: supported
+        ? `Tap below and allow your location once. We only check that your phone is at the restaurant (within ${radius} m). Your location is not stored.`
+        : "This browser can't share its location." + fallback,
+    }),
+    supported ? button : null,
+    message,
   );
-  input.focus();
 }
 
 // --- menu ----------------------------------------------------------------------------------------

@@ -85,6 +85,21 @@ abstract class _ManageCubit<T> extends Cubit<ManageState<T>> {
   }
 }
 
+/// How guests open their table (owner and managers): the PIN and/or the location check.
+class CustomerAccessCubit extends _ManageCubit<CustomerAccess> {
+  CustomerAccessCubit(this._repository);
+
+  final CustomerAccessRepository _repository;
+
+  @override
+  Future<CustomerAccess> fetch() => _repository.current();
+
+  Future<bool> save(CustomerAccess access) => act(() async {
+    final saved = await _repository.save(access);
+    if (!isClosed) emit(state.copyWith(data: saved, busy: false, message: 'Customer access saved'));
+  });
+}
+
 /// The table PIN screen (spec §35): see it, change it now, how often it changes, and ending
 /// every customer session at once.
 class PinSettingsCubit extends _ManageCubit<PinSettings> {

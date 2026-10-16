@@ -83,6 +83,7 @@ abstract final class Perm {
   static const ordersCancelReview = 'orders.cancel_review';
   static const menuAvailability = 'menu.availability';
   static const menuManage = 'menu.manage';
+  static const restaurantSettingsWrite = 'restaurant.settings.write';
   static const pinManage = 'pin.manage';
   static const tableSessionsInvalidateAll = 'table_sessions.invalidate_all';
   static const staffRead = 'staff.read';

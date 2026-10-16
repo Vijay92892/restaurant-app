@@ -29,6 +29,13 @@ class ManagePage extends StatelessWidget {
               subtitle: 'See it, change it now, how often it changes, sign out phones',
               path: '/manage/pin',
             ),
+          if (user.can(Perm.restaurantSettingsWrite))
+            const _Entry(
+              icon: Icons.location_on_rounded,
+              title: 'Customer access',
+              subtitle: 'Table PIN or a location check: how guests open their table',
+              path: '/manage/access',
+            ),
           if (user.can(Perm.menuAvailability))
             _Entry(
               icon: Icons.no_food_rounded,

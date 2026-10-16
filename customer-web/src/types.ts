@@ -12,6 +12,10 @@ export interface Landing {
   theme: string | null;
   /** A short line under the restaurant's name, once the restaurant approved it. */
   tagline: string | null;
+  /** How guests may open the table: the PIN, and/or a location check (restaurant's choice). */
+  pin_enabled: boolean;
+  location_enabled: boolean;
+  location_radius_m: number | null;
 }
 
 export interface SessionInfo {

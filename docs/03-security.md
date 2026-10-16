@@ -165,6 +165,63 @@ first PIN in one transaction, then signs the owner in.
 - The customer web app renders all server text with `textContent` (never `innerHTML`) and ships
   with a strict CSP (`default-src 'self'`, no inline script, `object-src 'none'`, `base-uri 'none'`).
 
+### 4.5 Location-based access without the PIN (optional, per restaurant)
+
+Migration 0007; full operating notes in [09-location-access.md](09-location-access.md).
+
+- **Off by default.** The owner or a manager (`restaurant.settings.write`; waiters and the kitchen
+  can neither see nor change it) turns it on with the branch's point (pasted from the map pin in
+  the staff app; never guessed), a radius of 25–500 m (default 100) and whether the PIN stays
+  available as a backup (default yes). Every change is audited
+  (`restaurant.customer_access_changed`). The database refuses a policy without a point, half a
+  point, out-of-range values and a radius outside 25–500 m.
+- **What guests see.** The landing response says only `pin_enabled`, `location_enabled` and
+  `location_radius_m`, never the coordinates. The page explains why it asks and requests one fresh
+  position only when the guest taps *Use my location* (`enableHighAccuracy`, `maximumAge: 0`);
+  it never watches the position or asks on its own.
+- **The check** (`POST /public/tables/{qr}/session/location`, `app/core/geo.py`): the report
+  `{latitude, longitude, accuracy_m, captured_at}` must be precise (accuracy ≤
+  `LOCATION_MAX_ACCURACY_M`, default 100 m), fresh (`captured_at` at most
+  `LOCATION_MAX_AGE_SECONDS`, default 120 s, old and at most `LOCATION_CLOCK_SKEW_SECONDS`,
+  default 60 s, in the future) and inside the fence: haversine distance minus half the reported
+  accuracy ≤ radius (so the phone's own uncertainty adds at most 50 m). A client's "I am near"
+  is never accepted: only these four facts, and the server decides. The same report never opens
+  a second session (single use for 30 minutes).
+- **The session** is the same as a PIN session: a fresh 256-bit random token in the
+  `__Host-ts` cookie, only its SHA-256 stored, bound to the restaurant and table, same lifetime,
+  same ends (leave, close table, invalidate all, rotate-and-invalidate). It records
+  `access_method = 'location'` and has no `pin_version` (a database check keeps both kinds
+  consistent). **Guests' positions are never stored**, in any table or log.
+- **PIN backup.** The PIN works unless location access is on *and* the backup is off; then the
+  PIN endpoint answers `403 access_method_off` before looking at the PIN (still counted as a
+  failed attempt). With location access off the PIN always works, whatever the backup switch says.
+- **Switching it off** refuses new PIN-free sessions at once. Sessions already open keep running
+  until they expire (`table_session_ttl_minutes`, default 3 h) or staff end them; orders are never
+  touched. A PIN rotation treats location sessions exactly like PIN sessions.
+
+| Counter (location endpoint) | Limit | Effect |
+|---|---|---|
+| per IP, all requests | 30 / 15 min | 429 |
+| per IP, failed checks | 10 / 15 min | 429 |
+| per table, failed checks | 30 / 15 min | 429 (also for a good report until the window passes) |
+| per position report | 1 use / 30 min | 403 `location_reused` |
+
+Refusals say what an honest guest can fix (`location_outside`, `location_inaccurate`,
+`location_stale`, `location_reused`), never the distance; unknown QR codes fail exactly like on
+the PIN path (`401 invalid_table_access`).
+
+**Limitation, stated honestly.** A position report is the guest's own claim. Developer tools,
+mock-location apps or a script can report any point, and the restaurant's location is public. A
+fabricated position inside the fence **is accepted** (a test says so on purpose,
+`test_a_made_up_position_inside_is_accepted_so_it_is_not_proof`). Passing the check means "the
+phone *reports* being here", never proof of presence. Against someone holding a photo of a table
+card it is therefore weaker than the PIN: they need the card, not the PIN. This is why the
+restaurant opts in, the PIN backup is the default, sessions stay bound to one table, waiters see
+which tables order, closing a table ends its sessions, and attempts are budgeted. Stronger
+checks were assessed and **not** implemented: platform attestation (Play Integrity, App Attest)
+needs a native app rather than a web page; a restaurant-Wi-Fi rule fails for guests on mobile
+data; rotating QR codes need a screen on every table; IP geolocation is city-level at best.
+
 ## 5. API hardening (all endpoints)
 
 - Pydantic v2 schemas with `extra="forbid"`, length/range bounds on every field, enums for states.
@@ -195,6 +252,7 @@ first PIN in one transaction, then signs the owner in.
 |---|---|---|
 | QR photography / remote ordering | QR is only an identifier; current PIN required; sessions bound to one table; close-table ends sessions | Phase 6 tests: order without session ⇒ 401 |
 | PIN brute force | Per-IP / per-table / per-restaurant failure caps, uniform errors, staff alert, 6-digit option | Phase 4/6 tests |
+| Faked location (PIN-free access, §4.5) | Restaurant opt-in; server-side freshness, accuracy and distance checks; one use per report; per-IP and per-table budgets; PIN backup by default; sessions bound to one table; **not proof of presence** (stated limitation) | `tests/test_location_access.py`, `customer-web/e2e/location.spec.ts` |
 | Old PIN reuse | Only current `pin_versions` row verifies; version in HMAC input | Phase 4 tests |
 | Session theft | HttpOnly+Secure+SameSite=Strict cookie, hashed at rest, expiry, close-table, invalidate-all | Phase 6 tests |
 | Session replay after expiry/revocation | Resolver returns tenant only for active & unexpired; per-request status check | Phase 6 tests |

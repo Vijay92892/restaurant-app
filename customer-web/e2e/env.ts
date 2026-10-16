@@ -31,6 +31,10 @@ export const BACKEND_ENV: Record<string, string> = {
   REGISTRATION_MODE: "closed",
   PUBLIC_ORDER_BASE_URL: WEB_URL,
   PUBLIC_WEB_ORIGINS: WEB_URL, // exercise the production Origin check too
+  // The local preview proxy stands in for Caddy: each browser project then reaches the API as
+  // its own phone (X-Forwarded-For, playwright.config.ts), so the per-address limits of
+  // production apply per project instead of adding up across the whole run.
+  TRUSTED_PROXIES: "127.0.0.1/32,::1/128",
   MEDIA_ROOT: path.join(BACKEND_DIR, ".media-e2e"),
   LOG_LEVEL: "WARNING",
 };

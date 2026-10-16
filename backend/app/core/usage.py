@@ -19,6 +19,8 @@ class Metric(StrEnum):
     PIN_ACCEPTED = "pin_accepted"  # a diner entered the right PIN: a new table session
     PIN_WRONG = "pin_wrong"
     PIN_LOCKED = "pin_locked"  # refused by the table/restaurant guessing limit
+    LOCATION_ACCEPTED = "location_accepted"  # a location check opened a table session
+    LOCATION_REFUSED = "location_refused"  # outside, inaccurate, stale or reused report
     STAFF_CONNECTED = "staff_connected"  # a staff device opened its live connection
     STAFF_CONNECTION_LOST = "staff_connection_lost"  # ...and lost it without closing it
     STAFF_RESYNC = "staff_resync"  # a device fell behind and had to reload

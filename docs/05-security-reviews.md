@@ -568,6 +568,38 @@ and without the developer at every step, and it needs to be measured. New since 
   staff with a one-time password, reset and switch-off, never the owner or oneself, password
   alphabet, route access per role, *Forgot password?*. Screenshots 13–17 reviewed.
 
+### Location-based access without the PIN — `POST /public/tables/{qr}/session/location`, `GET/PUT /restaurant/customer-access` (migration 0007)
+- **Surface:** one anonymous endpoint (rate-limited: 30 requests and 10 failures per IP, 30
+  failures per table per 15 min, one use per position report) and two staff endpoints. The
+  landing response adds the policy flags and radius, never the restaurant's coordinates.
+- **Authorization:** the policy is read and changed only with `restaurant.settings.write` (owner,
+  admin); waiters and the kitchen get `403` (test). The setting is per restaurant, bound to the
+  caller's tenant like every staff endpoint; changes are audited with the actor.
+- **Inputs:** coordinates and accuracy are finite numbers in range (NaN refused), the time is
+  timezone-aware ISO 8601; unknown fields refused. The policy must be whole (both coordinates or
+  neither, not 0,0, a point to turn it on; radius 25–500 m), checked in the API and the database.
+- **Decision:** server-side only (freshness, accuracy, haversine distance with half the accuracy
+  as tolerance). A client boolean is never accepted. Refusals carry a reason code, never the
+  distance; unknown QR codes fail exactly like the PIN path.
+- **Sessions:** the existing session service (random token, hash at rest, bound to restaurant and
+  table, same expiry and revocation), with `access_method` and no `pin_version` (database check).
+  No guest position is stored or logged (test checks every column).
+- **PIN fallback:** the PIN endpoint refuses (`403 access_method_off`) only while location access
+  is on without a backup; switching location access off restores the PIN regardless.
+- **Potential attack vectors and residual risk:** fabricated positions (accepted if inside: the
+  check is not proof of presence; stated in docs/03 §4.5, 09 and in the staff app), replayed
+  reports (single use + 2-minute freshness), floods (budgets), other tables or restaurants (the
+  session row decides; tests), switching the option off mid-service (no new sessions; open ones
+  continue and can be ended by staff).
+- **Tests:** backend `tests/test_location_access.py` (15: haversine, the check, permissions,
+  database rules, sessions without PIN, refusals, replay, the fabricated-position limitation,
+  table and tenant isolation, PIN backup off, switching off, PIN rotation, expiry, floods); the
+  route sweep (`tests/security/`); customer page unit tests (`tests/location.test.ts`) and
+  browser tests in Chrome, WebKit and Firefox with emulated positions (`e2e/location.spec.ts`:
+  inside, outside then PIN, permission denied, no PIN backup, never asks before the tap); staff
+  app widget tests (manager sets the policy, validation, PIN-backup rules, a refused save, routes
+  per role).
+
 ### Hide a dish from the menu — managers, in the sold-out screen (added after go-live)
 - **What:** switching a dish off, a manager or the owner chooses *Sold out* (guests still see
   it, cannot order it) or *Hide from the menu* (`PATCH /menu/items/{id}` with `is_active`);

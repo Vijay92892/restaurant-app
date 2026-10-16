@@ -5,7 +5,7 @@ import zoneinfo
 from datetime import datetime
 from typing import Annotated, Any
 
-from pydantic import AfterValidator, Field, StringConstraints
+from pydantic import AfterValidator, Field, StringConstraints, model_validator
 
 from app.schemas.common import (
     DisplayName,
@@ -17,6 +17,7 @@ from app.schemas.common import (
     RestaurantName,
     Username,
 )
+from app.schemas.public import Latitude, Longitude
 
 
 def _known_timezone(value: str) -> str:
@@ -44,6 +45,38 @@ class UpdateRestaurantRequest(RequestModel):
     table_session_ttl_minutes: Annotated[int, Field(ge=30, le=720)] | None = None
     waiter_can_cancel_preparing: bool | None = None
     kitchen_delay_minutes: Annotated[int, Field(ge=5, le=120)] | None = None
+
+
+class CustomerAccessRequest(RequestModel):
+    """How guests open a table session (owner and managers). The whole policy, every time."""
+
+    location_ordering_enabled: bool
+    # The branch's point, confirmed by the owner or a manager (e.g. copied from the map pin).
+    latitude: Latitude | None
+    longitude: Longitude | None
+    radius_m: Annotated[int, Field(ge=25, le=500)]
+    # With location access on: may guests whose location check fails still use the PIN?
+    pin_fallback_enabled: bool
+
+    @model_validator(mode="after")
+    def _check(self) -> CustomerAccessRequest:
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("give both latitude and longitude, or neither")
+        if self.latitude == 0 and self.longitude == 0:
+            raise ValueError("0, 0 is not the restaurant's location")
+        if self.location_ordering_enabled and self.latitude is None:
+            raise ValueError("set the restaurant's location before turning location access on")
+        return self
+
+
+class CustomerAccessResponse(ResponseModel):
+    location_ordering_enabled: bool
+    latitude: float | None
+    longitude: float | None
+    radius_m: int
+    pin_fallback_enabled: bool
+    # How precise a phone's position report must be (server setting), for the explanation.
+    max_accuracy_m: int
 
 
 class RestaurantResponse(ResponseModel):

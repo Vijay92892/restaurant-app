@@ -50,6 +50,8 @@ Legend: 🔓 public · 🍽 customer session cookie · 🔑 staff bearer token (
 | `POST /restaurants` | 🔓 rate-limited; gated by `REGISTRATION_MODE` (`closed` \| `invite` \| `open`) | `{restaurant_name, restaurant_code, owner_display_name, owner_username, owner_email?, password, invite_code?}` → `201 TokenPair` |
 | `GET /restaurant` | 🔑 restaurant.settings.read | → settings |
 | `PATCH /restaurant` | 🔑 restaurant.settings.write | `{name?, timezone?, table_session_ttl_minutes?, waiter_can_cancel_preparing?, kitchen_delay_minutes?}` |
+| `GET /restaurant/customer-access` | 🔑 restaurant.settings.write | → `{location_ordering_enabled, latitude, longitude, radius_m, pin_fallback_enabled, max_accuracy_m}` |
+| `PUT /restaurant/customer-access` | 🔑 restaurant.settings.write | the whole policy `{location_ordering_enabled, latitude?, longitude?, radius_m 25–500, pin_fallback_enabled}`: both coordinates or neither, not 0,0, a point required to turn it on ⇒ otherwise `422`; audited |
 
 ## 3. Staff (Phase 4 ✅)
 
@@ -103,8 +105,9 @@ Prices (`display_price_paise`, `display_price_delta_paise`) are **informational 
 
 | | | |
 |---|---|---|
-| `GET /public/tables/{qr_token}` | 🔓 | → `{restaurant_name, table_label, pin_length, has_session, theme, tagline}` (`theme`: a built-in look of the ordering page such as `heritage`, or null; `tagline`: approved text or null); invalid token ⇒ `404 not_found` |
-| `POST /public/tables/{qr_token}/session` | 🔓 PIN rate limits | `{pin}` → `200 {table_label, expires_at}` + `Set-Cookie: __Host-ts=…`; any failure ⇒ `401 invalid_table_access` |
+| `GET /public/tables/{qr_token}` | 🔓 | → `{restaurant_name, table_label, pin_length, has_session, theme, tagline, pin_enabled, location_enabled, location_radius_m}` (`theme`: a built-in look of the ordering page such as `heritage`, or null; `tagline`: approved text or null; how guests may open the table, never the restaurant's coordinates); invalid token ⇒ `404 not_found` |
+| `POST /public/tables/{qr_token}/session` | 🔓 PIN rate limits | `{pin}` → `200 {table_label, expires_at}` + `Set-Cookie: __Host-ts=…`; any failure ⇒ `401 invalid_table_access`; PIN not accepted here (location only) ⇒ `403 access_method_off` |
+| `POST /public/tables/{qr_token}/session/location` | 🔓 location rate limits (docs/03 §4.5) | `{latitude −90…90, longitude −180…180, accuracy_m ≥ 0, captured_at ISO 8601 with time zone}` → as above (`200` + cookie); location access off ⇒ `403 access_method_off`; refused ⇒ `403 location_outside / location_inaccurate / location_stale / location_reused` (never the distance); unknown QR ⇒ `401 invalid_table_access` |
 | `GET /public/session` | 🍽 | → `{restaurant_name, table_label, expires_at}` |
 | `DELETE /public/session` | 🍽 | leave table → `204` |
 | `GET /public/menu` | 🍽 (✅ Phase 5) | → `{restaurant_name, table_label, categories:[{items:[{…, is_available, orderable, modifier_group_ids}]}], modifier_groups:[{options}]}`; `ETag` + `If-None-Match` ⇒ `304` |

@@ -21,6 +21,7 @@ from app.api.deps import (
     PublicWrite,
     SettingsDep,
 )
+from app.core import geo
 from app.core.errors import NotFound
 from app.core.rate_limit import Budget, Limits
 from app.core.usage import Metric
@@ -32,7 +33,12 @@ from app.schemas.orders import (
     CreateOrderRequest,
     OrderView,
 )
-from app.schemas.public import CustomerSessionResponse, OpenSessionRequest, TableLandingResponse
+from app.schemas.public import (
+    CustomerSessionResponse,
+    LocationSessionRequest,
+    OpenSessionRequest,
+    TableLandingResponse,
+)
 from app.services import menu_service, order_service, table_session_service
 from app.services.order_service import OrderActor
 from app.services.table_session_service import SESSION_COOKIE
@@ -72,6 +78,7 @@ async def table_landing(
     has_session = await table_session_service.session_matches_table(
         db, request.cookies.get(SESSION_COOKIE), ctx.restaurant.id, ctx.table.id
     )
+    location = table_session_service.location_accepted(ctx.restaurant)
     return TableLandingResponse(
         restaurant_name=ctx.restaurant.name,
         table_label=ctx.table.label,
@@ -79,6 +86,29 @@ async def table_landing(
         has_session=has_session,
         theme=ctx.restaurant.theme,
         tagline=ctx.restaurant.tagline,
+        pin_enabled=table_session_service.pin_accepted(ctx.restaurant),
+        location_enabled=location,
+        location_radius_m=ctx.restaurant.location_radius_m if location else None,
+    )
+
+
+def _session_cookie(
+    response: Response, token: str, customer: table_session_service.CustomerSession
+) -> CustomerSessionResponse:
+    """Hand the new session to the browser: HttpOnly, Secure, SameSite=Strict, this site only."""
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=customer.restaurant.table_session_ttl_minutes * 60,
+        path="/",
+        secure=True,
+        httponly=True,
+        samesite="strict",
+    )
+    return CustomerSessionResponse(
+        restaurant_name=customer.restaurant.name,
+        table_label=customer.table.label,
+        expires_at=customer.session.expires_at,
     )
 
 
@@ -100,20 +130,36 @@ async def open_session(
     token, customer = await table_session_service.open_session(
         db, crypto, limiter, meta, qr_token, body.pin, usage=request.app.state.usage
     )
-    response.set_cookie(
-        SESSION_COOKIE,
-        token,
-        max_age=customer.restaurant.table_session_ttl_minutes * 60,
-        path="/",
-        secure=True,
-        httponly=True,
-        samesite="strict",
+    return _session_cookie(response, token, customer)
+
+
+@router.post(
+    "/tables/{qr_token}/session/location",
+    response_model=CustomerSessionResponse,
+    dependencies=[PublicWrite],
+)
+async def open_location_session(
+    qr_token: QrToken,
+    body: LocationSessionRequest,
+    request: Request,
+    response: Response,
+    db: DbSession,
+    settings: SettingsDep,
+    limiter: LimiterDep,
+    meta: MetaDep,
+) -> CustomerSessionResponse:
+    """A session without the PIN, where the restaurant allows it, from a fresh position report
+    inside its radius. The report is the browser's claim, not proof of presence (docs/03 §4.5)."""
+    report = geo.PositionReport(
+        latitude=body.latitude,
+        longitude=body.longitude,
+        accuracy_m=body.accuracy_m,
+        captured_at=body.captured_at,
     )
-    return CustomerSessionResponse(
-        restaurant_name=customer.restaurant.name,
-        table_label=customer.table.label,
-        expires_at=customer.session.expires_at,
+    token, customer = await table_session_service.open_location_session(
+        db, settings, limiter, meta, qr_token, report, usage=request.app.state.usage
     )
+    return _session_cookie(response, token, customer)
 
 
 @router.get("/menu", response_model=PublicMenuResponse)

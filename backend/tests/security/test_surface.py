@@ -50,6 +50,7 @@ from tests.security.surface import (
     declared_access,
     fill,
     http_routes,
+    location_report,
     walk_routes,
 )
 from tests.test_menu import build_menu
@@ -477,6 +478,7 @@ async def test_every_anonymous_route_is_rate_limited(
             "invite_code": INVITE_CODE + "-wrong",
         },
         "POST /api/v1/public/tables/{qr_token}/session": {"pin": "0000"},
+        "POST /api/v1/public/tables/{qr_token}/session/location": location_report(),
     }
     attacker = client_from("203.0.113.77")
     statuses = []

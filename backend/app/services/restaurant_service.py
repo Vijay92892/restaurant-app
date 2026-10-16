@@ -114,6 +114,53 @@ async def register_restaurant(
     return restaurant, owner
 
 
+async def update_customer_access(
+    db: AsyncSession,
+    ctx: StaffContext,
+    meta: RequestMeta,
+    *,
+    location_ordering_enabled: bool,
+    latitude: float | None,
+    longitude: float | None,
+    radius_m: int,
+    pin_fallback_enabled: bool,
+) -> Restaurant:
+    """Location-based table access (owner and managers). Turning it off stops new PIN-less
+    sessions at once; sessions already open keep running until they expire or staff end them
+    (so nobody's open order is cut off). Positions are rounded to 6 decimals (about 10 cm)."""
+    restaurant = ctx.restaurant
+    wanted = {
+        "location_ordering_enabled": location_ordering_enabled,
+        "location_latitude": None if latitude is None else round(latitude, 6),
+        "location_longitude": None if longitude is None else round(longitude, 6),
+        "location_radius_m": radius_m,
+        "pin_fallback_enabled": pin_fallback_enabled,
+    }
+    changed = sorted(k for k, v in wanted.items() if getattr(restaurant, k) != v)
+    for key in changed:
+        setattr(restaurant, key, wanted[key])
+    if changed:
+        await db.flush()
+        await audit.record(
+            db,
+            restaurant_id=restaurant.id,
+            action="restaurant.customer_access_changed",
+            actor_type=ActorType.STAFF,
+            actor_user_id=ctx.user_id,
+            entity_type="restaurant",
+            entity_id=restaurant.id,
+            details={
+                "fields": changed,
+                "location_ordering_enabled": restaurant.location_ordering_enabled,
+                "pin_fallback_enabled": restaurant.pin_fallback_enabled,
+                "radius_m": restaurant.location_radius_m,
+            },
+            meta=meta,
+        )
+    await db.commit()
+    return restaurant
+
+
 async def update_settings(
     db: AsyncSession, ctx: StaffContext, meta: RequestMeta, changes: dict[str, Any]
 ) -> Restaurant:

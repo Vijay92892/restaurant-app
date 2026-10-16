@@ -11,6 +11,7 @@ import inspect
 import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -70,6 +71,9 @@ SURFACE: dict[str, Access] = {
     # restaurant
     "GET /api/v1/restaurant": staff(P.RESTAURANT_SETTINGS_READ),
     "PATCH /api/v1/restaurant": staff(P.RESTAURANT_SETTINGS_WRITE),
+    # how guests open a table (location access): owner and managers only, reading included
+    "GET /api/v1/restaurant/customer-access": staff(P.RESTAURANT_SETTINGS_WRITE),
+    "PUT /api/v1/restaurant/customer-access": staff(P.RESTAURANT_SETTINGS_WRITE),
     "GET /api/v1/audit-logs": staff(P.AUDIT_READ),
     # staff accounts
     "GET /api/v1/staff": staff(P.STAFF_READ),
@@ -124,6 +128,9 @@ SURFACE: dict[str, Access] = {
     # customers (QR -> PIN -> session cookie)
     "GET /api/v1/public/tables/{qr_token}": anonymous(Limits.QR_LOOKUP_PER_IP),
     "POST /api/v1/public/tables/{qr_token}/session": anonymous(Limits.PIN_ATTEMPTS_PER_IP),
+    "POST /api/v1/public/tables/{qr_token}/session/location": anonymous(
+        Limits.LOCATION_ATTEMPTS_PER_IP
+    ),
     "GET /api/v1/public/menu": CUSTOMER,
     "POST /api/v1/public/orders": CUSTOMER,
     "GET /api/v1/public/orders": CUSTOMER,
@@ -212,11 +219,29 @@ def fill(path: str, ids: dict[str, str]) -> str:
     return path.replace("{decision}", "approve").replace("{key:path}", "missing.jpg")
 
 
+def location_report(latitude: float = 28.2449, longitude: float = 76.8136) -> dict[str, Any]:
+    """A fresh, precise position report, as the customer page sends it."""
+    return {
+        "latitude": latitude,
+        "longitude": longitude,
+        "accuracy_m": 20,
+        "captured_at": datetime.now(UTC).isoformat(),
+    }
+
+
 def body_for(key: str, ids: dict[str, str]) -> dict[str, Any] | None:
     """A body that passes validation, so the request reaches the authorization checks inside
     the handler. `ids` are the caller's own ids for anything the body refers to."""
     bodies: dict[str, Callable[[], dict[str, Any]]] = {
         "PATCH /api/v1/restaurant": lambda: {"kitchen_delay_minutes": 20},
+        "PUT /api/v1/restaurant/customer-access": lambda: {
+            "location_ordering_enabled": False,
+            "latitude": None,
+            "longitude": None,
+            "radius_m": 100,
+            "pin_fallback_enabled": True,
+        },
+        "POST /api/v1/public/tables/{qr_token}/session/location": location_report,
         "POST /api/v1/staff": lambda: {
             "username": f"new{uuid.uuid4().hex[:8]}",
             "display_name": "New",

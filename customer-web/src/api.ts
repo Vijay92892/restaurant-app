@@ -1,6 +1,7 @@
 // Same-origin API client. The table-session cookie (HttpOnly) is sent automatically; this code
 // never sees or stores it.
 
+import type { PositionReport } from "./location.ts";
 import type { Landing, Order, OrderRequest, PublicMenu, SessionInfo } from "./types.ts";
 
 export class ApiError extends Error {
@@ -80,6 +81,8 @@ export const api = {
   landing: async (token: string) => (await call<Landing>("GET", qr(token))).data as Landing,
   openSession: async (token: string, pin: string) =>
     (await call<SessionInfo>("POST", `${qr(token)}/session`, { body: { pin } })).data as SessionInfo,
+  openLocationSession: async (token: string, report: PositionReport) =>
+    (await call<SessionInfo>("POST", `${qr(token)}/session/location`, { body: report })).data as SessionInfo,
   leave: async () => {
     await call<null>("DELETE", "/session");
   },

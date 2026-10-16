@@ -36,6 +36,13 @@ class TableSessionStatus(StrEnum):
     CLOSED = "closed"
 
 
+class TableSessionAccess(StrEnum):
+    """How a guest opened a table session."""
+
+    PIN = "pin"
+    LOCATION = "location"  # the restaurant's location check, no PIN
+
+
 class TableSessionEndReason(StrEnum):
     INVALIDATED_BY_STAFF = "invalidated_by_staff"
     PIN_ROTATED = "pin_rotated"

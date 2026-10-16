@@ -97,6 +97,7 @@ G2. Who may cancel orders and approve waiters' cancellation requests? __________
 | H1. How often should the PIN change? | ☐ every 2 h ☐ every 4 h (default) ☐ every 6 h ☐ only when we change it |
 | H2. PIN length | ☐ 4 digits ☐ 6 digits |
 | H3. How do guests learn the PIN? (never printed on the QR card) | ☐ the waiter tells them ☐ a board at the counter ☐ other: ____ |
+| H4. Let guests at the restaurant order without the PIN after a location check? (a phone's location can be faked: docs/09) | ☐ no ☐ yes, PIN as backup ☐ yes, location only |
 
 ## I. Guests
 

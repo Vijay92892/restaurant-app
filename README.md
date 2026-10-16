@@ -20,6 +20,7 @@ design.
 | [docs/06-security-test-report.md](docs/06-security-test-report.md) | Phase 10 adversarial test campaign: findings, results by attack, load test, re-running it |
 | [docs/07-deployment.md](docs/07-deployment.md) | Deploying to one server (Docker Compose + Caddy), backups, updates, incidents, rehearsal results |
 | [docs/08-pilot-playbook.md](docs/08-pilot-playbook.md) | Running the pilot: preparation, staff training, what to observe, fallbacks, setup file format |
+| [docs/09-location-access.md](docs/09-location-access.md) | Optional ordering without the PIN after a location check: turning it on, behaviour, limits, rollout and rollback |
 
 ## Status
 

@@ -259,6 +259,9 @@ async def test_customer_opens_a_session_with_qr_and_current_pin(
         "has_session": False,
         "theme": None,  # the default look (branding: migration 0006)
         "tagline": None,
+        "pin_enabled": True,  # how guests may open a session (migration 0007)
+        "location_enabled": False,
+        "location_radius_m": None,
     }
     # The QR alone grants nothing.
     assert (await diner.get("/api/v1/public/session")).status_code == 401

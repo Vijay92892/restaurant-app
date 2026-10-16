@@ -15,12 +15,15 @@ from app.api.deps import (
     get_auth_service,
     require,
 )
+from app.core.config import Settings
 from app.core.permissions import Permission
-from app.models import AuditLog
+from app.models import AuditLog, Restaurant
 from app.schemas.auth import TokenPairResponse
 from app.schemas.common import patch_changes
 from app.schemas.restaurant import (
     AuditLogResponse,
+    CustomerAccessRequest,
+    CustomerAccessResponse,
     RegisterRestaurantRequest,
     RestaurantResponse,
     UpdateRestaurantRequest,
@@ -74,6 +77,48 @@ async def update_restaurant(
 ) -> RestaurantResponse:
     restaurant = await restaurant_service.update_settings(db, ctx, meta, patch_changes(body))
     return RestaurantResponse.model_validate(restaurant)
+
+
+def _access(restaurant: Restaurant, settings: Settings) -> CustomerAccessResponse:
+    return CustomerAccessResponse(
+        location_ordering_enabled=restaurant.location_ordering_enabled,
+        latitude=restaurant.location_latitude,
+        longitude=restaurant.location_longitude,
+        radius_m=restaurant.location_radius_m,
+        pin_fallback_enabled=restaurant.pin_fallback_enabled,
+        max_accuracy_m=settings.location_max_accuracy_m,
+    )
+
+
+# Owner and managers only (restaurant.settings.write), for reading too: the branch's point and
+# the policy are theirs to decide; waiters and the kitchen never see this screen.
+@router.get("/restaurant/customer-access", response_model=CustomerAccessResponse)
+async def get_customer_access(
+    settings: SettingsDep,
+    ctx: StaffContext = require(Permission.RESTAURANT_SETTINGS_WRITE),
+) -> CustomerAccessResponse:
+    return _access(ctx.restaurant, settings)
+
+
+@router.put("/restaurant/customer-access", response_model=CustomerAccessResponse)
+async def update_customer_access(
+    body: CustomerAccessRequest,
+    db: DbSession,
+    meta: MetaDep,
+    settings: SettingsDep,
+    ctx: StaffContext = require(Permission.RESTAURANT_SETTINGS_WRITE),
+) -> CustomerAccessResponse:
+    restaurant = await restaurant_service.update_customer_access(
+        db,
+        ctx,
+        meta,
+        location_ordering_enabled=body.location_ordering_enabled,
+        latitude=body.latitude,
+        longitude=body.longitude,
+        radius_m=body.radius_m,
+        pin_fallback_enabled=body.pin_fallback_enabled,
+    )
+    return _access(restaurant, settings)
 
 
 @router.get("/audit-logs", response_model=list[AuditLogResponse])

@@ -1,8 +1,10 @@
-"""Customer table sessions: QR + current PIN → a temporary, revocable session for one table.
+"""Customer table sessions: QR + current PIN (or, where the restaurant allows it, a location
+check) → a temporary, revocable session for one table.
 
 The session row permanently fixes (restaurant_id, table_id); customer requests derive their
 context from it and never from request parameters. The cookie carries a 256-bit random token;
-only its SHA-256 is stored. The PIN is never part of the token.
+only its SHA-256 is stored. Neither the PIN, the QR token nor a position is ever part of it,
+and guests' positions are never stored (the session only records *how* it was opened).
 """
 
 from __future__ import annotations
@@ -15,6 +17,8 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import geo
+from app.core.config import Settings
 from app.core.errors import AppError, NotFound, RateLimited
 from app.core.net import RequestMeta
 from app.core.pin import PinCrypto
@@ -23,7 +27,13 @@ from app.core.security import hash_token, new_opaque_token
 from app.core.usage import Metric, UsageCounters
 from app.db.session import bind_tenant
 from app.models import DiningTable, Restaurant, TableSession
-from app.models.enums import ActorType, RestaurantStatus, TableSessionEndReason, TableSessionStatus
+from app.models.enums import (
+    ActorType,
+    RestaurantStatus,
+    TableSessionAccess,
+    TableSessionEndReason,
+    TableSessionStatus,
+)
 from app.realtime import outbox
 from app.repositories import resolvers
 from app.schemas.common import QR_TOKEN_PATTERN
@@ -45,8 +55,42 @@ class NoTableSession(AppError):
     message = "Please scan the table QR code and enter the table PIN."
 
 
+class AccessMethodOff(AppError):
+    """This restaurant doesn't accept this way in (its policy is public on the landing page)."""
+
+    status_code = 403
+    code = "access_method_off"
+    message = "This way of opening the table isn't available here. Please ask a member of staff."
+
+
+class LocationRefused(AppError):
+    status_code = 403
+    code = "location_refused"
+    message = "We couldn't confirm that you are at the restaurant."
+
+
+# What guests are told: enough to fix an honest problem, nothing about the distance.
+_LOCATION_REFUSALS = {
+    geo.Verdict.OUTSIDE: ("location_outside", "You don't seem to be at the restaurant."),
+    geo.Verdict.INACCURATE: (
+        "location_inaccurate",
+        "Your phone isn't sure enough where it is. Try again in a minute, nearer a window.",
+    ),
+    geo.Verdict.STALE: ("location_stale", "That location was too old. Please try again."),
+}
+
+
 def utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+def location_accepted(restaurant: Restaurant) -> bool:
+    return restaurant.location_ordering_enabled and restaurant.location_latitude is not None
+
+
+def pin_accepted(restaurant: Restaurant) -> bool:
+    """The PIN always works unless the restaurant uses location access *without* a PIN backup."""
+    return not (location_accepted(restaurant) and not restaurant.pin_fallback_enabled)
 
 
 @dataclass(frozen=True)
@@ -141,6 +185,8 @@ async def open_session(
     current = await pin_service.current_version(db, restaurant_id)
     if ctx is None or current is None:
         raise InvalidTableAccess()
+    if not pin_accepted(ctx.restaurant):
+        raise AccessMethodOff()  # location only here; still counted as a failure
 
     try:
         await budget.take(Limits.PIN_FAILURES_PER_TABLE, f"{table_id}:{current.version}")
@@ -175,14 +221,95 @@ async def open_session(
         raise InvalidTableAccess()
     await budget.refund()  # the right PIN: not a failure
 
+    token, customer = await _start_session(db, ctx, TableSessionAccess.PIN, pin_version=version)
+    if usage is not None:
+        usage.add(restaurant_id, Metric.PIN_ACCEPTED)
+    return token, customer
+
+
+async def open_location_session(
+    db: AsyncSession,
+    settings: Settings,
+    limiter: RateLimiter,
+    meta: RequestMeta,
+    qr_token: str,
+    report: geo.PositionReport,
+    *,
+    usage: UsageCounters | None = None,
+) -> tuple[str, CustomerSession]:
+    """QR + a position report inside the restaurant's radius → a session, without the PIN.
+
+    The report is the guest's own claim (see app.core.geo): it is checked for freshness,
+    precision and distance, used at most once, and budgeted like PIN guesses. Unknown QR
+    codes fail exactly like on the PIN path.
+    """
+    ip = meta.ip
+    await limiter.enforce(Limits.LOCATION_ATTEMPTS_PER_IP, ip)
+    budget = Budget(limiter)  # every attempt is a failure until the report checks out
+    await budget.take(Limits.LOCATION_FAILURES_PER_IP, ip)
+
+    if not re.fullmatch(QR_TOKEN_PATTERN, qr_token):
+        raise InvalidTableAccess()
+    routed = await resolvers.resolve_qr_token(db, qr_token)
+    if routed is None:
+        raise InvalidTableAccess()
+    restaurant_id, table_id = routed
+    await bind_tenant(db, restaurant_id)
+    ctx = await _load_table_context(db, restaurant_id, table_id)
+    if ctx is None:
+        raise InvalidTableAccess()
+    restaurant = ctx.restaurant
+    if not location_accepted(restaurant):
+        raise AccessMethodOff()
+    await budget.take(Limits.LOCATION_FAILURES_PER_TABLE, str(table_id))
+
+    assert restaurant.location_latitude is not None and restaurant.location_longitude is not None
+    fence = geo.Geofence(
+        restaurant.location_latitude, restaurant.location_longitude, restaurant.location_radius_m
+    )
+    verdict = geo.judge(
+        report,
+        fence,
+        now=utcnow(),
+        max_accuracy_m=settings.location_max_accuracy_m,
+        max_age=timedelta(seconds=settings.location_max_age_seconds),
+        clock_skew=timedelta(seconds=settings.location_clock_skew_seconds),
+    )
+    if verdict is not geo.Verdict.INSIDE:
+        if usage is not None:
+            usage.add(restaurant_id, Metric.LOCATION_REFUSED)
+        code, message = _LOCATION_REFUSALS[verdict]
+        raise LocationRefused(message, code=code)
+    # The same report (sent again, by anyone) never opens a second session.
+    fingerprint = (
+        f"{table_id}|{report.latitude!r}|{report.longitude!r}|{report.accuracy_m!r}|"
+        f"{report.captured_at.isoformat()}"
+    )
+    if not (await limiter.hit(Limits.LOCATION_REPORT_ONCE, fingerprint)).allowed:
+        if usage is not None:
+            usage.add(restaurant_id, Metric.LOCATION_REFUSED)
+        raise LocationRefused("Please try again.", code="location_reused")
+    await budget.refund()
+
+    token, customer = await _start_session(db, ctx, TableSessionAccess.LOCATION, pin_version=None)
+    if usage is not None:
+        usage.add(restaurant_id, Metric.LOCATION_ACCEPTED)
+    return token, customer
+
+
+async def _start_session(
+    db: AsyncSession, ctx: TableContext, access: TableSessionAccess, *, pin_version: int | None
+) -> tuple[str, CustomerSession]:
+    """A new session for this table: a fresh random token, only its hash stored."""
     now = utcnow()
     token = new_opaque_token()
     session = TableSession(
         id=uuid.uuid4(),
-        restaurant_id=restaurant_id,
-        table_id=table_id,
+        restaurant_id=ctx.restaurant.id,
+        table_id=ctx.table.id,
         token_hash=hash_token(token),
-        pin_version=version,
+        pin_version=pin_version,
+        access_method=access.value,
         status=TableSessionStatus.ACTIVE.value,
         created_at=now,
         last_seen_at=now,
@@ -190,8 +317,6 @@ async def open_session(
     )
     db.add(session)
     await db.commit()
-    if usage is not None:
-        usage.add(restaurant_id, Metric.PIN_ACCEPTED)
     return token, CustomerSession(session=session, restaurant=ctx.restaurant, table=ctx.table)
 
 

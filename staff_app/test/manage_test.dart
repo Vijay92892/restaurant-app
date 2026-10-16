@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:staff_app/core/auth/staff_user.dart';
 import 'package:staff_app/core/realtime/live_updates.dart';
 import 'package:staff_app/core/routing/app_router.dart';
+import 'package:staff_app/features/manage/customer_access_page.dart';
 import 'package:staff_app/features/manage/manage_cubits.dart';
 import 'package:staff_app/features/manage/manage_repositories.dart';
 import 'package:staff_app/features/manage/pin_settings_page.dart';
@@ -506,8 +507,12 @@ void main() {
     expect(mayOpen(kitchen, '/sold-out'), isTrue);
     expect(mayOpen(kitchen, '/tables'), isFalse);
     expect(mayOpen(kitchen, '/manage'), isFalse);
+    // How guests open their table is the owner's and managers' decision only.
+    expect(mayOpen(waiter, '/manage/access'), isFalse);
+    expect(mayOpen(kitchen, '/manage/access'), isFalse);
     for (final path in [
       '/manage',
+      '/manage/access',
       '/manage/pin',
       '/manage/staff',
       '/manage/reports',
@@ -517,5 +522,153 @@ void main() {
       expect(mayOpen(admin, path), isTrue, reason: path);
       expect(mayOpen(owner, path), isTrue, reason: path);
     }
+  });
+
+  group('customer access', () {
+    const located = CustomerAccess(
+      locationEnabled: true,
+      latitude: 28.2449519,
+      longitude: 76.8135882,
+      radiusM: 100,
+      pinFallback: true,
+    );
+
+    Future<FakeCustomerAccess> pumpAccess(WidgetTester tester, [CustomerAccess? start]) async {
+      final repository = FakeCustomerAccess(start);
+      await tester.pumpWidget(
+        wrap(
+          BlocProvider(
+            create: (_) => CustomerAccessCubit(repository)..load(),
+            child: const CustomerAccessPage(),
+          ),
+          auth: signedIn(staff(StaffRole.admin, name: 'Kiran')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return repository;
+    }
+
+    // The form is taller than the test screen and lists build lazily: scroll to things first.
+    Future<void> scrollTo(WidgetTester tester, Key key, {double by = 200}) =>
+        tester.scrollUntilVisible(find.byKey(key), by, scrollable: find.byType(Scrollable).first);
+
+    Future<void> save(WidgetTester tester) async {
+      await scrollTo(tester, const Key('save-access'));
+      await tester.ensureVisible(find.byKey(const Key('save-access'))); // fully, not just its edge
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('save-access')));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> backToTop(WidgetTester tester) => scrollTo(tester, const Key('access-summary'), by: -200);
+
+    testWidgets('a manager lets guests at the restaurant order without the PIN', (tester) async {
+      final repository = await pumpAccess(tester);
+      expect(find.text('Guests enter the table PIN to order.'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('location-switch')));
+      await tester.pump();
+      await save(tester);
+      expect(find.text("Enter the restaurant's location first"), findsOneWidget);
+      expect(repository.saved, isEmpty); // nothing sent without the branch's point
+
+      await tester.enterText(find.byKey(const Key('location-point')), 'near the highway');
+      await save(tester);
+      expect(find.textContaining('Paste the two numbers from the map'), findsOneWidget);
+      expect(repository.saved, isEmpty);
+
+      await tester.enterText(find.byKey(const Key('location-point')), '28.2449519, 76.8135882');
+      await tester.ensureVisible(find.byKey(const Key('location-radius')));
+      await tester.tap(find.byKey(const Key('location-radius')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('150 m').last);
+      await tester.pumpAndSettle();
+      await save(tester);
+
+      expect(
+        repository.saved.single,
+        const CustomerAccess(
+          locationEnabled: true,
+          latitude: 28.2449519,
+          longitude: 76.8135882,
+          radiusM: 150,
+          pinFallback: true,
+        ),
+      );
+      expect(find.text('Customer access saved'), findsOneWidget);
+      await backToTop(tester);
+      expect(find.textContaining('within 150 m'), findsOneWidget); // the summary follows
+    });
+
+    testWidgets('the PIN backup can only be switched off while the location check is on', (tester) async {
+      final repository = await pumpAccess(tester, located);
+      expect(find.textContaining('order without a PIN. If their phone'), findsOneWidget);
+      expect(find.text('28.244952, 76.813588'), findsOneWidget); // the saved point, shown
+
+      await tester.tap(find.byKey(const Key('fallback-switch')));
+      await tester.pump();
+      expect(find.textContaining('will have to ask a waiter'), findsOneWidget);
+      await save(tester);
+      expect(repository.saved.single.pinFallback, isFalse);
+      await backToTop(tester);
+      expect(find.textContaining('the table PIN is not accepted'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('location-switch'))); // off again
+      await tester.pump();
+      await scrollTo(tester, const Key('fallback-switch'));
+      final backup = tester.widget<SwitchListTile>(find.byKey(const Key('fallback-switch')));
+      expect(backup.onChanged, isNull); // the PIN always works while the check is off
+      expect(backup.value, isTrue);
+    });
+
+    testWidgets('a refused save says why, keeps the edit and can be tried again', (tester) async {
+      final repository = await pumpAccess(tester, located);
+      repository.failWith = offlineError;
+      await tester.tap(find.byKey(const Key('location-switch')));
+      await tester.pump();
+      await save(tester);
+      expect(find.text('No connection.'), findsOneWidget);
+      expect(repository.access.locationEnabled, isTrue); // nothing changed on the server
+      await backToTop(tester);
+      final toggle = tester.widget<SwitchListTile>(find.byKey(const Key('location-switch')));
+      expect(toggle.value, isFalse); // the manager's edit is still there
+
+      await save(tester); // connection back: the same edit goes through
+      expect(repository.saved.single.locationEnabled, isFalse);
+      expect(find.text('Customer access saved'), findsOneWidget);
+    });
+
+    test('coordinates are read the way map apps copy them', () {
+      expect(parseCoordinates('28.2449519, 76.8135882'), (28.2449519, 76.8135882));
+      expect(parseCoordinates('28.2449519,76.8135882'), (28.2449519, 76.8135882));
+      expect(parseCoordinates('  28.2449519 76.8135882 '), (28.2449519, 76.8135882));
+      expect(parseCoordinates('-33.8688, 151.2093'), (-33.8688, 151.2093));
+      for (final bad in ['', 'Sidhrawali', '28.24', '91, 10', '10, 181', '0, 0', '1, 2, 3', 'NaN, 5']) {
+        expect(parseCoordinates(bad), isNull, reason: bad);
+      }
+      expect(formatCoordinates(28.2449519, 76.8135882), '28.244952, 76.813588');
+    });
+
+    test('the policy round-trips and reads as one sentence', () {
+      final json = {
+        'location_ordering_enabled': true,
+        'latitude': 28.2449519,
+        'longitude': 76.8135882,
+        'radius_m': 100,
+        'pin_fallback_enabled': false,
+        'max_accuracy_m': 100,
+      };
+      final access = CustomerAccess.fromJson(json);
+      expect(access.toJson(), {...json}..remove('max_accuracy_m'));
+      expect(access.summary, contains('the table PIN is not accepted'));
+      const off = CustomerAccess(
+        locationEnabled: false,
+        latitude: null,
+        longitude: null,
+        radiusM: 100,
+        pinFallback: false,
+      );
+      expect(off.summary, 'Guests enter the table PIN to order.');
+    });
   });
 }

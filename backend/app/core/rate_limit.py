@@ -54,6 +54,14 @@ class Limits:
     PIN_FAILURES_PER_IP = Limit("pin_fail_ip", 5, 900)
     PIN_FAILURES_PER_TABLE = Limit("pin_fail_table", 10, 900)
     PIN_FAILURES_PER_RESTAURANT = Limit("pin_fail_restaurant", 60, 3600)
+    # Location-based access (restaurants turn it on): bounded like PIN entry, with a little
+    # more room for honest retries (a guest stepping to a window for a better fix).
+    LOCATION_ATTEMPTS_PER_IP = Limit("loc_ip", 30, 900)
+    LOCATION_FAILURES_PER_IP = Limit("loc_fail_ip", 10, 900)
+    LOCATION_FAILURES_PER_TABLE = Limit("loc_fail_table", 30, 900)
+    # One position report opens at most one session: the same report sent again is refused
+    # for longer than any report stays fresh (max age + clock skew ≤ 1500 s).
+    LOCATION_REPORT_ONCE = Limit("loc_report", 1, 1800)
     # Customer ordering. Created orders and attempts are counted separately so a diner who
     # hits a few "sold out" errors is not locked out, while spam is still bounded.
     ORDERS_CREATED_PER_SESSION = Limit("order_created_session", 10, 600)

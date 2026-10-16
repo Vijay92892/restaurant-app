@@ -14,6 +14,7 @@ import '../../features/kitchen/kitchen_store.dart';
 import '../../features/manage/manage_cubits.dart';
 import '../../features/manage/manage_page.dart';
 import '../../features/manage/manage_repositories.dart';
+import '../../features/manage/customer_access_page.dart';
 import '../../features/manage/pin_settings_page.dart';
 import '../../features/manage/problem_reports_page.dart';
 import '../../features/manage/staff_page.dart';
@@ -58,6 +59,7 @@ bool mayOpen(StaffUser user, String path) {
   if (under('/kitchen')) return user.can(Perm.ordersKitchen);
   if (under('/sold-out')) return user.can(Perm.menuAvailability);
   if (under('/manage/pin')) return user.can(Perm.pinView);
+  if (under('/manage/access')) return user.can(Perm.restaurantSettingsWrite);
   if (under('/manage/staff')) return user.can(Perm.staffRead);
   if (under('/manage/reports')) return user.can(Perm.problemReportsRead);
   if (under('/manage')) return canManage(user);
@@ -131,6 +133,13 @@ GoRouter buildRouter(AuthBloc auth, {String? rememberedCode}) {
               create: (context) =>
                   PinSettingsCubit(context.read<PinRepository>(), live: context.read<LiveUpdates>())..start(),
               child: const PinSettingsPage(),
+            ),
+          ),
+          GoRoute(
+            path: 'access',
+            builder: (context, _) => BlocProvider(
+              create: (context) => CustomerAccessCubit(context.read<CustomerAccessRepository>())..load(),
+              child: const CustomerAccessPage(),
             ),
           ),
           GoRoute(

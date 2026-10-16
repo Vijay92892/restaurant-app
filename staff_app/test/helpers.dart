@@ -286,6 +286,7 @@ final _admin = {
   'orders.cancel_review',
   'pin.manage',
   'menu.manage',
+  'restaurant.settings.write',
   'table_sessions.invalidate_all',
   'staff.read',
   'staff.manage',
@@ -331,6 +332,7 @@ Widget wrap(
   LiveUpdates? live,
   AvailabilityRepository? availability,
   PinRepository? pin,
+  CustomerAccessRepository? customerAccess,
   StaffRepository? staffAccounts,
   ProblemReportsRepository? problems,
   ThemeData? theme,
@@ -344,6 +346,7 @@ Widget wrap(
       RepositoryProvider<LiveUpdates>.value(value: live ?? FakeLive()),
       RepositoryProvider<AvailabilityRepository>.value(value: availability ?? FakeAvailability()),
       RepositoryProvider<PinRepository>.value(value: pin ?? FakePin()),
+      RepositoryProvider<CustomerAccessRepository>.value(value: customerAccess ?? FakeCustomerAccess()),
       RepositoryProvider<StaffRepository>.value(value: staffAccounts ?? FakeStaffAccounts()),
       RepositoryProvider<ProblemReportsRepository>.value(value: problems ?? FakeProblems()),
     ],
@@ -633,6 +636,37 @@ class FakeAvailability implements AvailabilityRepository {
       if (d.id == id) menu = menu.replace(d.withHidden(!shown));
     }
     return shown;
+  }
+}
+
+class FakeCustomerAccess implements CustomerAccessRepository {
+  FakeCustomerAccess([CustomerAccess? access])
+    : access =
+          access ??
+          const CustomerAccess(
+            locationEnabled: false,
+            latitude: null,
+            longitude: null,
+            radiusM: 100,
+            pinFallback: true,
+          );
+
+  CustomerAccess access;
+  final saved = <CustomerAccess>[];
+  Object? failWith;
+
+  @override
+  Future<CustomerAccess> current() async => access;
+
+  @override
+  Future<CustomerAccess> save(CustomerAccess next) async {
+    final failure = failWith;
+    if (failure != null) {
+      failWith = null;
+      throw failure;
+    }
+    saved.add(next);
+    return access = next;
   }
 }
 

@@ -70,6 +70,13 @@ class Settings(BaseSettings):
     pin_enc_key: SecretStr = SecretStr(DEV_SECRET_PREFIX + "pin-enc-key-change-me-0123456789")
     pin_scheduler_enabled: bool = True
     pin_scheduler_interval_seconds: int = Field(default=60, ge=5, le=3600)
+    # Location-based table access (restaurants turn it on): how good a phone's position report
+    # must be. 100 m: a phone indoors usually reports 10–60 m; worse means a guess from Wi-Fi or
+    # cell towers. 120 s: the page asks for a fresh fix, so older reports are cached or replayed.
+    location_max_accuracy_m: int = Field(default=100, ge=10, le=500)
+    location_max_age_seconds: int = Field(default=120, ge=10, le=900)
+    # Phones' clocks drift a little: a report this far in the future still counts as fresh.
+    location_clock_skew_seconds: int = Field(default=60, ge=0, le=600)
 
     # --- data retention -------------------------------------------------------------------------
     # A background job deletes records nobody needs any more. Orders are kept (they are the

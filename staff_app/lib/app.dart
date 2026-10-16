@@ -101,6 +101,7 @@ class _StaffAppState extends State<StaffApp> with WidgetsBindingObserver {
         RepositoryProvider(create: (_) => KitchenRepository(widget.api)),
         RepositoryProvider(create: (_) => AvailabilityRepository(widget.api)),
         RepositoryProvider(create: (_) => PinRepository(widget.api)),
+        RepositoryProvider(create: (_) => CustomerAccessRepository(widget.api)),
         RepositoryProvider(create: (_) => StaffRepository(widget.api)),
         RepositoryProvider(create: (_) => ProblemReportsRepository(widget.api)),
         RepositoryProvider.value(value: _boardStore),

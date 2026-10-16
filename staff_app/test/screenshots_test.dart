@@ -13,7 +13,9 @@ import 'package:staff_app/core/realtime/live_updates.dart';
 import 'package:staff_app/core/theme/app_theme.dart';
 import 'package:staff_app/features/kitchen/kitchen_cubit.dart';
 import 'package:staff_app/features/kitchen/kitchen_page.dart';
+import 'package:staff_app/features/manage/customer_access_page.dart';
 import 'package:staff_app/features/manage/manage_cubits.dart';
+import 'package:staff_app/features/manage/manage_repositories.dart';
 import 'package:staff_app/features/manage/pin_settings_page.dart';
 import 'package:staff_app/features/manage/staff_page.dart';
 import 'package:staff_app/features/menu/sold_out_cubit.dart';
@@ -328,6 +330,27 @@ void main() {
       ),
     );
     await snap(tester, '15-table-pin');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('15b customer access', skip: _skip, (tester) async {
+    await phone(tester);
+    final access = FakeCustomerAccess(
+      const CustomerAccess(
+        locationEnabled: true,
+        latitude: 28.2449519,
+        longitude: 76.8135882,
+        radiusM: 100,
+        pinFallback: true,
+      ),
+    );
+    await tester.pumpWidget(
+      wrap(
+        BlocProvider(create: (_) => CustomerAccessCubit(access)..load(), child: const CustomerAccessPage()),
+        auth: signedIn(staff(StaffRole.owner, name: 'Asha')),
+      ),
+    );
+    await snap(tester, '15b-customer-access');
     await tester.pumpWidget(const SizedBox());
   });
 

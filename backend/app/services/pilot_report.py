@@ -195,6 +195,13 @@ async def build(
         f"({_percent(totals['pin_wrong'], pin_tries)} of tries), {totals['pin_locked']} refused "
         f"by the guessing limit; QR codes opened {totals['qr_opened']} times."
     )
+    location_tries = totals["location_accepted"] + totals["location_refused"]
+    if location_tries:
+        out(
+            f"- **Location check (no PIN):** {totals['location_accepted']} accepted, "
+            f"{totals['location_refused']} refused "
+            f"({_percent(totals['location_refused'], location_tries)} of tries)."
+        )
     out(
         f"- **Staff devices:** {totals['staff_connection_lost']} dropped connections, "
         f"{totals['staff_resync']} forced reloads."

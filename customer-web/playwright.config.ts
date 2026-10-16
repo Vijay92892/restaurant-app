@@ -5,6 +5,10 @@ import { API_PORT, API_URL, BACKEND_DIR, BACKEND_ENV, CERT_DIR, E2E_DB, PYTHON, 
 // Three browser engines, each as a phone: Chrome (Android), WebKit (Safari on iPhone) and
 // Firefox. Chrome is the installed Google Chrome; WebKit and Firefox come from
 // `npx playwright install webkit firefox`. Screenshots are taken in Chrome only.
+// Each project is a different phone to the API (documentation addresses, RFC 5737): the
+// preview proxy is trusted like Caddy in production (TRUSTED_PROXIES in e2e/env.ts).
+const phone = (n: number) => ({ "X-Forwarded-For": `198.51.100.${n}` });
+
 export default defineConfig({
   testDir: "e2e",
   timeout: 60_000,
@@ -16,11 +20,11 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "chrome", use: { ...devices["Pixel 7"], channel: "chrome" } },
-    { name: "webkit", use: { ...devices["iPhone 14"] }, testIgnore: /screens\.spec/ },
+    { name: "chrome", use: { ...devices["Pixel 7"], channel: "chrome", extraHTTPHeaders: phone(11) } },
+    { name: "webkit", use: { ...devices["iPhone 14"], extraHTTPHeaders: phone(12) }, testIgnore: /screens\.spec/ },
     {
       name: "firefox",
-      use: { ...devices["Desktop Firefox"], viewport: { width: 412, height: 915 } },
+      use: { ...devices["Desktop Firefox"], viewport: { width: 412, height: 915 }, extraHTTPHeaders: phone(13) },
       testIgnore: /screens\.spec/,
     },
   ],

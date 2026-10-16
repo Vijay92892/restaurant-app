@@ -91,7 +91,9 @@ class TableSession(Base):
     restaurant_id: Mapped[uuid.UUID] = tenant_id()
     table_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
     token_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False, unique=True)
-    pin_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    # The PIN version a PIN session was opened with; None for a location session.
+    pin_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    access_method: Mapped[str] = mapped_column(Text, nullable=False, default="pin")
     status: Mapped[str] = mapped_column(Text, nullable=False, default="active")
     created_at: Mapped[datetime] = col_created_at()
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

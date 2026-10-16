@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, Integer, SmallInteger, Text
+from sqlalchemy import BigInteger, Boolean, Double, Integer, SmallInteger, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, col_created_at, col_updated_at, uuid_pk
@@ -28,5 +28,12 @@ class Restaurant(Base):
     # Customer ordering page branding (migration 0006): a built-in theme and a short tagline.
     theme: Mapped[str | None] = mapped_column(Text, nullable=True)
     tagline: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Location-based table access (migration 0007): off unless the restaurant turns it on, and
+    # only with the branch's point, confirmed by the owner or a manager.
+    location_ordering_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    location_latitude: Mapped[float | None] = mapped_column(Double, nullable=True)
+    location_longitude: Mapped[float | None] = mapped_column(Double, nullable=True)
+    location_radius_m: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    pin_fallback_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = col_created_at()
     updated_at: Mapped[datetime] = col_updated_at()
