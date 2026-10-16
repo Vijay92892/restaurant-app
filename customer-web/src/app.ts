@@ -527,9 +527,10 @@ function itemCard(item: MenuItem, groups: Map<string, MenuGroup>, counts: Map<st
   const action = status
     ? h("span", { class: "soldout", text: status })
     : h("button", {
-        class: hasOptions ? "add choose" : "add",
-        attrs: { "aria-label": `Add ${item.name}` },
-        text: hasOptions ? "Choose" : "Add",
+        // One label for every dish; dishes with choices open their sheet first.
+        class: "add",
+        attrs: { "aria-label": `Order ${item.name}` },
+        text: "Order",
         on: {
           click: (event) => {
             event.stopPropagation();

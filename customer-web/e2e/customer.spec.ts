@@ -88,7 +88,7 @@ test("a diner goes from QR code to an order in the kitchen", async ({ page }) =>
   await expect(page.getByText("₹249", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "Vegetarian" }).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "Add Paneer Tikka" }).click();
+  await page.getByRole("button", { name: "Order Paneer Tikka" }).click();
   const sheet = page.getByRole("dialog", { name: "Paneer Tikka" });
   await sheet.getByRole("button", { name: "Add to order" }).click();
   await expect(sheet.getByText("Please choose a spice level")).toBeVisible(); // required choice
@@ -98,7 +98,7 @@ test("a diner goes from QR code to an order in the kitchen", async ({ page }) =>
   await sheet.getByRole("button", { name: "Add to order" }).click();
   await expect(page.getByRole("status")).toHaveText("Added 2 × Paneer Tikka");
 
-  await page.getByRole("button", { name: "Add Butter Naan" }).click();
+  await page.getByRole("button", { name: "Order Butter Naan" }).click();
   await page.getByRole("button", { name: /View order · 3 items/ }).click();
   const cart = page.getByRole("dialog", { name: "Your order" });
   await expect(cart.getByText("Spice level: Spicy")).toBeVisible();
@@ -119,7 +119,7 @@ test("a diner goes from QR code to an order in the kitchen", async ({ page }) =>
 
 test("a double tap on Place order sends exactly one order, which can be cancelled", async ({ page }) => {
   await seat(page);
-  await page.getByRole("button", { name: "Add Butter Naan" }).click();
+  await page.getByRole("button", { name: "Order Butter Naan" }).click();
   await page.getByRole("button", { name: /View order · 1 item/ }).click();
   await page.getByRole("dialog", { name: "Your order" }).getByRole("button", { name: "Place order" }).dblclick();
   await expect(page.getByRole("heading", { name: "My orders" })).toBeVisible();
@@ -142,7 +142,7 @@ test("diners can search the menu and order from the results", async ({ page }) =
   await expect(sections).toBeHidden();
   await expect(page.locator("#search-results")).toHaveText("1 dish found");
 
-  await page.getByRole("button", { name: "Add Butter Naan" }).click();
+  await page.getByRole("button", { name: "Order Butter Naan" }).click();
   await expect(page.getByRole("button", { name: /View order · 1 item/ })).toBeVisible();
   await expect(search).toHaveValue("naan");
 
@@ -173,7 +173,7 @@ test("sold-out dishes cannot be ordered, on the page or behind it", async ({ pag
   await seat(page);
   const card = page.locator(".card", { hasText: "Missi Roti" });
   await expect(card.getByText("Sold out")).toBeVisible();
-  await expect(card.getByRole("button", { name: "Add Missi Roti" })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Order Missi Roti" })).toHaveCount(0);
   await expect(card.locator(".card-main")).toBeDisabled();
   // The server refuses it anyway (the page never decides what can be ordered).
   const attempt = await page.request.post("/api/v1/public/orders", {
@@ -185,7 +185,7 @@ test("sold-out dishes cannot be ordered, on the page or behind it", async ({ pag
 
 test("the order sheet changes quantities and removes dishes", async ({ page }) => {
   await seat(page);
-  const add = page.getByRole("button", { name: "Add Butter Naan" });
+  const add = page.getByRole("button", { name: "Order Butter Naan" });
   await add.click();
   await add.click();
   await expect(page.locator(".card", { hasText: "Butter Naan" }).getByText("2 in order")).toBeVisible();
@@ -268,7 +268,7 @@ test("everything a restaurant or diner can type is shown as text, never run", as
   await page.getByLabel("Enter the table PIN").fill(pin);
   await expect(page.getByRole("heading", { name: hostile.category })).toBeVisible();
 
-  await page.getByRole("button", { name: `Add ${hostile.dish}` }).click();
+  await page.getByRole("button", { name: `Order ${hostile.dish}` }).click();
   const sheet = page.getByRole("dialog", { name: hostile.dish });
   await expect(sheet.getByText(hostile.description)).toBeVisible();
   await expect(sheet.getByText(hostile.group)).toBeVisible();

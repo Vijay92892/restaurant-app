@@ -57,14 +57,14 @@ test("capture every customer screen", async ({ page, playwright }) => {
   await expect(page.getByText("Butter Chicken")).toBeVisible();
   await shot("2b-search");
   await page.getByRole("searchbox", { name: "Search the menu" }).fill("");
-  await page.getByRole("button", { name: "Add Paneer Tikka" }).click();
+  await page.getByRole("button", { name: "Order Paneer Tikka" }).click();
   const sheet = page.getByRole("dialog", { name: "Paneer Tikka" });
   await sheet.getByRole("radio", { name: "Medium" }).check();
   await sheet.getByRole("checkbox", { name: /Extra cheese/ }).check();
   await shot("3-dish-options");
   await sheet.getByRole("button", { name: "Add to order" }).click();
-  await page.getByRole("button", { name: "Add Butter Naan" }).click();
-  await page.getByRole("button", { name: "Add Butter Naan" }).click();
+  await page.getByRole("button", { name: "Order Butter Naan" }).click();
+  await page.getByRole("button", { name: "Order Butter Naan" }).click();
   await page.getByRole("button", { name: /View order/ }).click();
   await shot("4-cart");
   await page.getByRole("dialog", { name: "Your order" }).getByRole("button", { name: "Place order" }).click();

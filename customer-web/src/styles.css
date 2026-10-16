@@ -766,11 +766,6 @@ h2,
   white-space: nowrap;
 }
 
-.add.choose {
-  background: var(--surface);
-  color: var(--brand);
-}
-
 .add:active {
   background: var(--brand-strong);
   border-color: var(--brand-strong);
