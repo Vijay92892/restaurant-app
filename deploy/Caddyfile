@@ -42,7 +42,9 @@
 			Referrer-Policy "no-referrer"
 			X-Frame-Options "DENY"
 			Content-Security-Policy "frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
-			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+			# geolocation=(self): the page asks for one position for ordering without the PIN
+			# (docs/09). geolocation=() would make the browser refuse without ever asking.
+			Permissions-Policy "camera=(), microphone=(), geolocation=(self)"
 			Cross-Origin-Opener-Policy "same-origin"
 		}
 		@hashed path /assets/*

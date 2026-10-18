@@ -196,7 +196,9 @@ runtime role still owns nothing, and with no restaurant bound it still sees zero
 
 - One HTTPS origin; HTTP redirects to HTTPS; HSTS on the page and the API.
 - Customer page: `nosniff`, `Referrer-Policy: no-referrer`, `frame-ancestors 'none'` (plus the
-  page's own strict CSP); hashed bundles cached, the page itself always revalidated.
+  page's own strict CSP); `Permissions-Policy` with no camera or microphone, and location for
+  the page itself only (ordering without the PIN, docs/09); hashed bundles cached, the page
+  itself always revalidated.
 - API: production settings refuse to start with development secrets, without Redis, SMTP or
   HTTPS URLs, or if the runtime database role could bypass row-level security. API docs are off.
 - Client addresses come only from Caddy's `X-Forwarded-For` (`TRUSTED_PROXIES` is the Docker

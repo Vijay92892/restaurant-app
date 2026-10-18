@@ -53,7 +53,10 @@ export function isPositionError(error: unknown): error is { code: number } {
 }
 
 export function positionErrorText(code: number): string {
-  if (code === 1) return "Location permission was not given.";
+  // Denied, or blocked earlier (the browser then refuses without asking again).
+  if (code === 1) {
+    return "Location isn't allowed for this page. Turn on your phone's location, allow it for this site (tap the icon next to the web address), then try again.";
+  }
   if (code === 3) return "Finding your location took too long.";
   return "Your phone couldn't find its location.";
 }

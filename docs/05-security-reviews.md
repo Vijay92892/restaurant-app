@@ -599,6 +599,12 @@ and without the developer at every step, and it needs to be measured. New since 
   inside, outside then PIN, permission denied, no PIN backup, never asks before the tap); staff
   app widget tests (manager sets the policy, validation, PIN-backup rules, a refused save, routes
   per role).
+- **Fix after release (v1.5.1):** the page's `Permissions-Policy` (Caddy) still said
+  `geolocation=()`, so phones refused the location at once without asking. Now
+  `geolocation=(self)`: this page only, never a framed one (framing is forbidden anyway). The
+  browser tests missed it because the preview server sent no such header; it now sends the
+  Caddyfile's own policy (with the old value all 5 location tests fail), plus a backend test on
+  the Caddyfile and a `check_deployment.py` check on the live header.
 
 ### Hide a dish from the menu — managers, in the sold-out screen (added after go-live)
 - **What:** switching a dish off, a manager or the owner chooses *Sold out* (guests still see

@@ -30,7 +30,7 @@ test("a browser position becomes the report the server checks", () => {
 });
 
 test("browser failures are explained in plain words", () => {
-  assert.equal(positionErrorText(1), "Location permission was not given.");
+  assert.match(positionErrorText(1), /^Location isn't allowed for this page\. .*try again\.$/);
   assert.equal(positionErrorText(2), "Your phone couldn't find its location.");
   assert.equal(positionErrorText(3), "Finding your location took too long.");
   assert.equal(isPositionError({ code: 1, message: "denied" }), true);

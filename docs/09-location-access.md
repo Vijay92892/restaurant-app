@@ -40,6 +40,13 @@ that tap. On success the menu opens; otherwise the page says what to do ("You do
 the restaurant", "Your phone isn't sure enough where it is…") and offers the PIN if the backup is
 on, or asks them to call a member of staff if not. Restaurants without the option see no change.
 
+**"Location isn't allowed for this page", without being asked.** The browser remembers a
+refusal (an earlier *Block*) and won't ask again; or the phone's location is off. Turn on the
+phone's location; in Chrome tap the icon left of the web address → *Permissions* → *Location* →
+*Allow* (iPhone: *Settings → Privacy → Location Services → Safari Websites → While Using*),
+reload, tap *Use my location* again. Some QR-scanner apps open links in their own built-in
+browser, which may never ask: open the link in Chrome or Safari instead.
+
 ## 4. Behaviour reference
 
 | Situation | What happens |

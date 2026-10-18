@@ -81,6 +81,11 @@ def check_page(r: Report, client: httpx.Client) -> None:
         "framing forbidden (CSP frame-ancestors 'none')",
         h.get("content-security-policy", "missing"),
     )
+    r.check(
+        "geolocation=(self)" in h.get("permissions-policy", ""),
+        "the page may ask for location (Permissions-Policy geolocation=(self))",
+        h.get("permissions-policy", "missing"),
+    )
     r.check("default-src 'self'" in page.text, "the page's own Content-Security-Policy is present")
     r.check(
         "no-cache" in h.get("cache-control", ""),

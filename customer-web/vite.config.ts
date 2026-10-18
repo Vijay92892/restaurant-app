@@ -17,6 +17,19 @@ const previewHttps = certDir
   ? { key: readFileSync(`${certDir}/key.pem`), cert: readFileSync(`${certDir}/cert.pem`) }
   : undefined;
 
+// The preview (end-to-end tests) sends production's Permissions-Policy, read from the real
+// Caddyfile, so the location tests fail if production would block the location prompt. The
+// Docker build has no deploy/ folder beside the page; it doesn't need this.
+function productionPermissionsPolicy(): Record<string, string> {
+  try {
+    const caddyfile = readFileSync(new URL("../deploy/Caddyfile", import.meta.url), "utf8");
+    const policy = /Permissions-Policy\s+"([^"]*)"/.exec(caddyfile)?.[1];
+    return policy ? { "Permissions-Policy": policy } : {};
+  } catch {
+    return {};
+  }
+}
+
 // Strict CSP for production builds only (the dev server injects inline styles for HMR).
 // Everything — script, style, images, API calls — comes from our own origin. Data is only ever
 // rendered with textContent, so this is defence in depth against XSS.
@@ -48,7 +61,7 @@ export default defineConfig({
   plugins: [productionCsp()],
   appType: "spa", // /t/<token> falls back to index.html
   server: { port: 5173, strictPort: true, proxy },
-  preview: { port: 4173, strictPort: true, proxy, https: previewHttps },
+  preview: { port: 4173, strictPort: true, proxy, https: previewHttps, headers: productionPermissionsPolicy() },
   build: {
     target: "es2020",
     cssCodeSplit: false,

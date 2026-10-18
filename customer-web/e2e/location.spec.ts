@@ -98,7 +98,7 @@ test("a guest who doesn't share their location can use the PIN", async ({ page, 
   test.skip(browserName !== "chromium", "only Chromium answers an ungranted request at once (denied)");
   await page.goto(`/t/${withPin.qr}`);
   await page.getByRole("button", { name: "Use my location" }).click();
-  await expect(page.getByText("Location permission was not given. You can use the table PIN instead.")).toBeVisible();
+  await expect(page.getByText(/^Location isn't allowed for this page\. .* You can use the table PIN instead\.$/)).toBeVisible();
   await page.getByLabel("Enter the table PIN").fill(withPin.pin);
   await expect(page.getByRole("heading", { name: "Drinks" })).toBeVisible();
 });

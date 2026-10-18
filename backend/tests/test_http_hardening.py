@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import uuid
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import httpx
 import pytest
@@ -50,6 +51,18 @@ async def test_security_headers_are_set(client: httpx.AsyncClient) -> None:
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
     assert response.headers["cache-control"] == "no-store"
     assert "strict-transport-security" not in response.headers  # only in production
+
+
+def test_customer_page_may_ask_for_location() -> None:
+    # The page (served by Caddy, not the API) asks for one position for ordering without the PIN.
+    # geolocation=() there made phones refuse at once, without a prompt.
+    caddyfile = (Path(__file__).resolve().parents[2] / "deploy" / "Caddyfile").read_text()
+    policies = re.findall(r'Permissions-Policy\s+"([^"]*)"', caddyfile)
+    assert policies, "the customer page sets a Permissions-Policy"
+    for policy in policies:
+        features = dict(part.strip().split("=", 1) for part in policy.split(","))
+        assert features["geolocation"] == "(self)", policy  # this page only, never frames
+        assert features["camera"] == features["microphone"] == "()", policy
 
 
 async def test_docs_page_can_load_swagger_while_api_keeps_strict_csp(
